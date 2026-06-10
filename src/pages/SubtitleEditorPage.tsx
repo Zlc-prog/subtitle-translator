@@ -69,7 +69,7 @@ export default function SubtitleEditorPage() {
     if (subtitles.length === 0) return;
     try {
       const srt = serializeSrt(subtitles);
-      const defaultName = fileName.replace(".srt", ".edited.srt") || "output.srt";
+      const defaultName = fileName || "output.srt";
       const savePath = await save({ defaultPath: defaultName, filters: [{ name: "字幕文件", extensions: ["srt"] }] });
       if (!savePath) return;
       await writeTextFile(savePath, srt);

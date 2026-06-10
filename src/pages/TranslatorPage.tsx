@@ -229,7 +229,7 @@ export default function TranslatorPage({ onOpenApiKey }: { onOpenApiKey: () => v
 
     try {
       const srt = serializeSrt(subtitles);
-      const defaultName = useSubtitleStore.getState().fileName.replace(".srt", ".en.srt") || "output.en.srt";
+      const defaultName = useSubtitleStore.getState().fileName || "output.srt";
       const savePath = await save({
         defaultPath: defaultName,
         filters: [{ name: "字幕文件", extensions: ["srt"] }],

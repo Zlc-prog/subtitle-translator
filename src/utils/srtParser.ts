@@ -44,6 +44,5 @@ export function serializeSrt(subtitles: Subtitle[]): string {
       const text = sub.translation ?? sub.text;
       return `${index}\n${start} --> ${end}\n${text}`;
     })
-    .join("\n\n")
-    .concat("\n");
+    .join("\n\n");
 }

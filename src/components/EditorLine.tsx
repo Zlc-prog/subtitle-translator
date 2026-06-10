@@ -22,11 +22,26 @@ function timeToSeconds(t: string): number {
 }
 
 function secondsToTime(s: number): string {
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = Math.floor(s % 60);
-  const ms = Math.round((s - Math.floor(s)) * 1000);
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")},${String(ms).padStart(3, "0")}`;
+  let h = Math.floor(s / 3600);
+  let m = Math.floor((s % 3600) / 60);
+  let sec = Math.floor(s % 60);
+  let ms = Math.round((s - Math.floor(s)) * 1000);
+
+  // Handle rounding overflow: 999.5ms → 1000ms should carry into seconds
+  if (ms >= 1000) {
+    ms -= 1000;
+    sec += 1;
+  }
+  if (sec >= 60) {
+    sec -= 60;
+    m += 1;
+  }
+  if (m >= 60) {
+    m -= 60;
+    h += 1;
+  }
+
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}.${String(ms).padStart(3, "0")}`;
 }
 
 export default function EditorLine({
