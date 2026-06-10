@@ -34,9 +34,9 @@
     ],
     "windows": {
       "nsis": {
-        "installMode": "currentUser"
-      },
-      "webview2InstallMode": "skip"
+        "installMode": "currentUser",
+        "webview2InstallMode": "skip"
+      }
     }
   },
   "plugins": {

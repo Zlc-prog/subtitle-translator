@@ -4,6 +4,17 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      platform:
+        description: "Build platform"
+        required: true
+        type: choice
+        default: "all"
+        options:
+          - all
+          - macos-arm64
+          - macos-intel
+          - windows-x64
 
 jobs:
   build:
@@ -25,6 +36,12 @@ jobs:
             label: windows-x64
 
     runs-on: ${{ matrix.platform }}
+
+    # Skip jobs not matching the selected platform
+    if: |
+      github.event_name != 'workflow_dispatch' ||
+      inputs.platform == 'all' ||
+      inputs.platform == matrix.label
 
     steps:
       - uses: actions/checkout@v4
