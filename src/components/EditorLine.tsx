@@ -9,6 +9,7 @@ interface EditorLineProps {
   onTimeChange: (index: number, startTime: string, endTime: string) => void;
   onSplit: (index: number, cursorPos: number) => void;
   onMerge: (index: number) => void;
+  onDelete: (index: number) => void;
 }
 
 function countChars(text: string): number {
@@ -52,6 +53,7 @@ export default function EditorLine({
   onTimeChange,
   onSplit,
   onMerge,
+  onDelete,
 }: EditorLineProps) {
   const textRef = useRef<HTMLTextAreaElement>(null);
 
@@ -74,10 +76,19 @@ export default function EditorLine({
   );
 
   return (
-    <div className="flex items-start gap-3 px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors">
-      {/* Index */}
-      <div className="flex-shrink-0 w-8 pt-2 text-xs text-gray-400 font-medium">
-        #{index + 1}
+    <div className="flex items-start gap-3 px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors group">
+      {/* Delete + Index */}
+      <div className="flex-shrink-0 flex items-start gap-1">
+        <button
+          onClick={() => onDelete(index)}
+          className="opacity-0 group-hover:opacity-100 transition-opacity px-1 py-0.5 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded"
+          title="删除此行"
+        >
+          ✕
+        </button>
+        <div className="w-6 pt-2 text-xs text-gray-400 font-medium">
+          #{index + 1}
+        </div>
       </div>
 
       {/* Timecodes */}
@@ -114,6 +125,18 @@ export default function EditorLine({
           {subtitle.text.length} 字符 · Enter 拆分 · 开头 Backspace 合并
         </div>
       </div>
+
+      {/* Translation (read-only when exists) */}
+      {subtitle.translation && (
+        <div className="flex-1 min-w-0">
+          <div className="w-full px-2 py-1.5 text-sm text-blue-700 bg-blue-50/50 border border-blue-100 rounded leading-relaxed whitespace-pre-wrap">
+            {subtitle.translation}
+          </div>
+          <div className="text-xs text-blue-400 mt-0.5">
+            {subtitle.translation.length} 字符 · 译文
+          </div>
+        </div>
+      )}
     </div>
   );
 }

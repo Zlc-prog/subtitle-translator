@@ -138,25 +138,25 @@ export default function ReviewModal({ isOpen, onClose }: { isOpen: boolean; onCl
           <button
             onClick={() => setCurrent((c) => Math.max(0, c - 1))}
             disabled={current === 0}
-            className="px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100 rounded-lg disabled:opacity-30"
+            className="px-3 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg disabled:opacity-30"
           >
             ← 上一条
           </button>
 
           <div className="flex gap-2">
-            <button onClick={handleSkip} className="px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100 rounded-lg">
+            <button onClick={handleSkip} className="px-3 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg">
               跳过
             </button>
             {editing ? (
-              <button onClick={saveEdit} className="px-4 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700">
+              <button onClick={saveEdit} className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700">
                 保存修改
               </button>
             ) : (
               <>
-                <button onClick={handleAccept} className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                <button onClick={handleAccept} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                   接受
                 </button>
-                <button onClick={startEdit} className="px-4 py-1.5 text-sm bg-orange-500 text-white rounded-lg hover:bg-orange-600">
+                <button onClick={startEdit} className="px-4 py-2 text-sm bg-orange-500 text-white rounded-lg hover:bg-orange-600">
                   修改
                 </button>
               </>
@@ -166,7 +166,7 @@ export default function ReviewModal({ isOpen, onClose }: { isOpen: boolean; onCl
           <button
             onClick={() => setCurrent((c) => Math.min(reviewItems.length - 1, c + 1))}
             disabled={current >= reviewItems.length - 1}
-            className="px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100 rounded-lg disabled:opacity-30"
+            className="px-3 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg disabled:opacity-30"
           >
             下一条 →
           </button>

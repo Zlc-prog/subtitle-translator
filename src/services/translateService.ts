@@ -1,30 +1,11 @@
-import { Subtitle, TranslationRules } from "../types/subtitle";
+import { Subtitle, TranslationRules, DEFAULT_BASE_INSTRUCTIONS } from "../types/subtitle";
 import { parseSentenceGroups, isFillerLine } from "../utils/sentenceGrouper";
 
 const API_BASE = "https://api.deepseek.com/v1/chat/completions";
 
 function buildSystemPrompt(rules: TranslationRules): string {
-  let prompt = `You are a professional subtitle colloquialization assistant. Your task is to translate Chinese sentences into natural, fluent, colloquial English suitable for subtitle reading.
-
-【Core Rules】
-1. Holistic understanding — no mechanical splitting: DO NOT translate by mechanically splitting at commas, clauses, or line breaks in the original text. You must first understand the complete logical structure of the entire sentence (including run-on sentences, topic-comment structures, omitted subjects, implicit causality, etc.), then restructure it into a coherent English colloquial expression using proper conjunctions, relative clauses, or by breaking it into multiple short sentences.
-
-2. Word order restructuring:
-   - Convert Chinese topic-comment structures (e.g., "那部电影我们昨晚看的") to English SVO order: "We watched that movie last night."
-   - Place conditional and temporal clauses where they sound natural in English (before or after the main clause), using correct conjunctions (if, when, because, although).
-   - Express Chinese implicit passive constructions (e.g., "房子建好了") using English active voice or natural passive forms: "The house is finished."
-
-3. Colloquial requirements:
-   - Use contractions (don't, can't, I'll, gonna, wanna — naturally, not forced), phrasal verbs (pick up, find out, run into).
-   - Break long Chinese run-on sentences (3+ short clauses) into two or three concise English sentences separated by periods.
-   - Preserve tone: questions, exclamations, hesitations ("well", "uh", "you know", "like").
-   - Add appropriate subjects for omitted ones (it, you, we, they).
-
-4. Proper nouns: On first occurrence, append the Chinese term in brackets with review marker, e.g., "Beijing [地名：北京，请人工核校]" or "Controlled nuclear fusion [名词：可控核聚变，请人工核校]". Use appropriate category labels (名词/人名/地名/机构名). On later occurrences, omit the annotation.
-
-5. Punctuation: Use Western half-width punctuation (.,?!;:).
-
-6. Output only: Output only the translated English text. No explanations, notes, or blank lines.`;
+  const base = rules.baseInstructions || DEFAULT_BASE_INSTRUCTIONS;
+  let prompt = base;
 
   if (rules.properNouns.length > 0) {
     prompt += "\n\n【User-provided Proper Noun Dictionary】\n";
@@ -93,16 +74,22 @@ export async function splitSentences(
 export async function translateGroup(
   group: Subtitle[],
   rules: TranslationRules,
-  apiKey: string
+  apiKey: string,
+  retranslate = false
 ): Promise<string[]> {
   if (group.length === 0) return [];
 
   const systemPrompt = buildSystemPrompt(rules);
+  const retranslateHint = retranslate
+    ? "\n\n【Important】This is a re-translation. Produce a DIFFERENT translation from the typical rendering — vary sentence structure, word choice, and phrasing. Avoid repeating the same expressions."
+    : "";
 
   // Clean standalone filler lines before sending
   const cleaned = group.map((s) =>
     isFillerLine(s.text) ? "[语气词]" : s.text
   );
+
+  const temperature = retranslate ? 0.7 : 0.3;
 
   if (group.length === 1) {
     // Single line: normal translate
@@ -115,10 +102,10 @@ export async function translateGroup(
       body: JSON.stringify({
         model: "deepseek-chat",
         messages: [
-          { role: "system", content: systemPrompt },
+          { role: "system", content: systemPrompt + retranslateHint },
           { role: "user", content: cleaned[0] },
         ],
-        temperature: 0.3,
+        temperature,
         max_tokens: 1024,
       }),
     });
@@ -143,10 +130,10 @@ export async function translateGroup(
     body: JSON.stringify({
       model: "deepseek-chat",
       messages: [
-        { role: "system", content: systemPrompt },
+        { role: "system", content: systemPrompt + retranslateHint },
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.3,
+      temperature,
       max_tokens: 4096,
     }),
   });

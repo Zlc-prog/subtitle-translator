@@ -84,21 +84,24 @@ export default function SubtitleItem({
   };
 
   return (
-    <div className="flex items-start gap-3 px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors group">
-      {/* Delete + Index & Timestamp */}
-      <div className="flex-shrink-0 flex items-start gap-1">
-        <button
-          onClick={() => deleteSubtitle(index)}
-          disabled={isTranslating}
-          className="opacity-0 group-hover:opacity-100 transition-opacity px-1 py-0.5 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded disabled:cursor-not-allowed"
-          title="删除此行"
-        >
-          ✕
-        </button>
-        <div className="w-28 text-xs text-gray-400 pt-0.5">
-          <div className="font-medium text-gray-600">#{index + 1}</div>
-          <div>{subtitle.startTime}</div>
-          <div>→ {subtitle.endTime}</div>
+    <div className="flex items-start gap-2 px-3 py-2 border-b border-gray-50 hover:bg-gray-50/50 transition-colors group">
+      {/* Delete + Meta */}
+      <div className="flex-shrink-0 w-20 pt-0.5">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => deleteSubtitle(index)}
+            disabled={isTranslating}
+            className="opacity-0 group-hover:opacity-100 transition-opacity px-1 py-0.5 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded disabled:cursor-not-allowed"
+            title="删除此行"
+          >
+            ✕
+          </button>
+          <span className="text-xs text-gray-400 font-medium">#{index + 1}</span>
+        </div>
+        <div className="text-[10px] text-gray-400 font-mono mt-0.5 leading-tight">
+          {subtitle.startTime}
+          <br />
+          {subtitle.endTime}
         </div>
       </div>
 
@@ -139,19 +142,15 @@ export default function SubtitleItem({
           />
         ) : hasPending ? (
           <div className="space-y-1">
-            {/* Old translation */}
             <div className="text-sm text-gray-400 whitespace-pre-wrap leading-relaxed line-through">
               {subtitle.translation ? renderHighlighted(subtitle.translation, () => {}) : "（无）"}
             </div>
-            {/* New pending translation */}
             <div className="text-sm text-green-700 whitespace-pre-wrap leading-relaxed bg-green-50 rounded px-1.5 py-0.5 border border-green-200">
               {renderHighlighted(pendingTranslation, () => {})}
             </div>
           </div>
         ) : subtitle.translation ? (
-          <div
-            className="text-sm text-blue-700 whitespace-pre-wrap leading-relaxed rounded px-1 -mx-1"
-          >
+          <div className="text-sm text-blue-700 whitespace-pre-wrap leading-relaxed rounded px-1 -mx-1">
             <span
               onClick={() => startEdit("translation")}
               className="cursor-pointer hover:bg-yellow-100 transition-colors rounded"
@@ -168,30 +167,30 @@ export default function SubtitleItem({
       </div>
 
       {/* Actions */}
-      <div className="flex-shrink-0 flex flex-col gap-1 items-end">
+      <div className="flex-shrink-0 flex flex-col gap-1 items-end pt-0.5">
         {hasPending ? (
           <>
             <button
               onClick={applyPendingTranslations}
-              className="px-2 py-1 text-xs text-green-700 bg-green-100 hover:bg-green-200 rounded transition-colors"
+              className="px-2 py-0.5 text-xs text-green-700 bg-green-100 hover:bg-green-200 rounded transition-colors"
               title="应用新译文"
             >
-              ✓ 接受
+              接受
             </button>
             <button
               onClick={clearPendingTranslations}
-              className="px-2 py-1 text-xs text-red-500 hover:bg-red-50 rounded transition-colors"
+              className="px-2 py-0.5 text-xs text-red-500 hover:bg-red-50 rounded transition-colors"
               title="拒绝新译文"
             >
-              ✕ 拒绝
+              拒绝
             </button>
           </>
         ) : (
           <button
             onClick={onRetranslate}
             disabled={isTranslating || !subtitle.translation}
-            className="px-2 py-1 text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-            title="重新翻译这一句"
+            className="px-2 py-0.5 text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            title="重新翻译"
           >
             重新翻译
           </button>

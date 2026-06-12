@@ -41,7 +41,15 @@ export async function loadRules(): Promise<TranslationRules | null> {
   try {
     const store = await getStore();
     const raw = await store.get(RULES_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const rules = JSON.parse(raw) as TranslationRules;
+      // Migrate old data: add baseInstructions if missing
+      if (!rules.baseInstructions) {
+        const { DEFAULT_BASE_INSTRUCTIONS } = await import("../types/subtitle");
+        rules.baseInstructions = DEFAULT_BASE_INSTRUCTIONS;
+      }
+      return rules;
+    }
     return null;
   } catch {
     return null;

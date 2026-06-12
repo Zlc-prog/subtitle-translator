@@ -120,6 +120,15 @@ export default function SubtitleEditorPage() {
     });
   }, []);
 
+  // Delete subtitle
+  const handleDelete = useCallback((idx: number) => {
+    setLocalSubtitles((prev) => {
+      const next = [...prev];
+      next.splice(idx, 1);
+      return next.map((s, i) => ({ ...s, index: i + 1 }));
+    });
+  }, []);
+
   // Time change
   const handleTimeChange = useCallback((idx: number, startTime: string, endTime: string) => {
     setLocalSubtitles((prev) => {
@@ -196,7 +205,15 @@ export default function SubtitleEditorPage() {
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 bg-white">
         <h2 className="text-sm font-semibold text-gray-700">字幕修改</h2>
-        {fileName && <span className="text-xs text-gray-400">{fileName}</span>}
+        {fileName && (
+          <input
+            type="text"
+            value={fileName}
+            onChange={(e) => setLocalFileName(e.target.value)}
+            className="text-xs text-gray-600 bg-transparent border-b border-gray-300 hover:border-gray-400 focus:border-blue-400 outline-none px-1 py-0.5 w-48"
+            title="可修改文件名，导出时作为默认名称"
+          />
+        )}
         <span className="text-xs text-gray-300">· {subtitles.length} 条</span>
 
         <div className="flex-1" />
@@ -240,9 +257,9 @@ export default function SubtitleEditorPage() {
       {subtitles.length === 0 ? (
         <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
           <div className="text-center">
-            <div className="text-4xl mb-3">✏️</div>
-            <div>上传 SRT 文件、从其他模块传入或拖拽文件到窗口</div>
-            <div className="text-xs text-gray-300 mt-1">支持 Enter 拆分、Backspace 合并</div>
+            <div className="text-sm text-gray-600 mb-1">上传 SRT 字幕文件</div>
+            <div className="text-xs text-gray-400">支持点击上传或拖拽文件到窗口</div>
+            <div className="text-xs text-gray-400 mt-0.5">支持 Enter 拆分、Backspace 合并、悬浮删除</div>
           </div>
         </div>
       ) : (
@@ -257,6 +274,7 @@ export default function SubtitleEditorPage() {
               onTimeChange={handleTimeChange}
               onSplit={handleSplit}
               onMerge={handleMerge}
+              onDelete={handleDelete}
             />
           ))}
         </div>

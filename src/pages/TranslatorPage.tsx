@@ -17,6 +17,7 @@ export default function TranslatorPage({ onOpenApiKey }: { onOpenApiKey: () => v
   const [showRules, setShowRules] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [showClear, setShowClear] = useState(false);
+  const [showRetranslateConfirm, setShowRetranslateConfirm] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
 
   const {
@@ -139,29 +140,28 @@ export default function TranslatorPage({ onOpenApiKey }: { onOpenApiKey: () => v
     })();
   }, []);
 
-  // Translate all
-  const translateAll = useCallback(async () => {
-    if (subtitles.length === 0) return;
-    if (!apiKey) {
-      alert("请先设置 DeepSeek API Key");
-      onOpenApiKey();
-      return;
-    }
-
+  // Core translate logic
+  const doTranslate = useCallback(async (retranslate: boolean) => {
     setIsTranslating(true);
 
     try {
+      const currentSubtitles = useSubtitleStore.getState().subtitles;
+      const currentRules = useSubtitleStore.getState().translationRules;
+      const currentApiKey = useSubtitleStore.getState().apiKey;
+
       const storedGroups = useSubtitleStore.getState().sentenceGroups;
       const groups = storedGroups.length > 0
         ? storedGroups
-        : await splitSentences(subtitles, translationRules, apiKey);
+        : await splitSentences(currentSubtitles, currentRules, currentApiKey);
       setSentenceGroups(groups);
 
-      const remaining = groups.filter((g) => g.some((idx) => !subtitles[idx].translation));
+      const remaining = retranslate
+        ? groups
+        : groups.filter((g) => g.some((idx) => !currentSubtitles[idx].translation));
 
       for (const group of remaining) {
-        const groupSubtitles = group.map((idx) => subtitles[idx]);
-        const translations = await translateGroup(groupSubtitles, translationRules, apiKey);
+        const groupSubtitles = group.map((idx) => currentSubtitles[idx]);
+        const translations = await translateGroup(groupSubtitles, currentRules, currentApiKey, retranslate);
 
         for (let j = 0; j < group.length; j++) {
           if (translations[j]) {
@@ -173,9 +173,27 @@ export default function TranslatorPage({ onOpenApiKey }: { onOpenApiKey: () => v
       alert(`翻译出错: ${e.message ?? e}`);
     } finally {
       setIsTranslating(false);
-      setTranslatedCount(subtitles.filter((s) => s.translation).length);
+      setTranslatedCount(useSubtitleStore.getState().subtitles.filter((s) => s.translation).length);
     }
-  }, [subtitles, apiKey, translationRules, setTranslation, setIsTranslating, setTranslatedCount, setSentenceGroups]);
+  }, [setIsTranslating, setSentenceGroups, setTranslation, setTranslatedCount]);
+
+  // Translate all — check for existing translations first
+  const translateAll = useCallback(async () => {
+    if (subtitles.length === 0) return;
+    if (!apiKey) {
+      alert("请先设置 DeepSeek API Key");
+      onOpenApiKey();
+      return;
+    }
+
+    const currentTranslated = useSubtitleStore.getState().subtitles.filter((s) => s.translation).length;
+    if (currentTranslated > 0) {
+      setShowRetranslateConfirm(true);
+      return;
+    }
+
+    await doTranslate(false);
+  }, [subtitles.length, apiKey, onOpenApiKey, doTranslate]);
 
   // Re-translate a sentence group
   const handleRetranslate = useCallback(
@@ -191,7 +209,7 @@ export default function TranslatorPage({ onOpenApiKey }: { onOpenApiKey: () => v
       if (!group) {
         try {
           const fromStore = useSubtitleStore.getState();
-          const [result] = await translateGroup([fromStore.subtitles[idx]], translationRules, apiKey);
+          const [result] = await translateGroup([fromStore.subtitles[idx]], translationRules, apiKey, true);
           if (result) {
             setPendingTranslation(idx, result);
           }
@@ -204,7 +222,7 @@ export default function TranslatorPage({ onOpenApiKey }: { onOpenApiKey: () => v
       try {
         const fromStore = useSubtitleStore.getState();
         const groupSubtitles = group.map((i) => fromStore.subtitles[i]);
-        const translations = await translateGroup(groupSubtitles, translationRules, apiKey);
+        const translations = await translateGroup(groupSubtitles, translationRules, apiKey, true);
 
         for (let j = 0; j < group.length; j++) {
           if (translations[j]) {
@@ -290,7 +308,13 @@ export default function TranslatorPage({ onOpenApiKey }: { onOpenApiKey: () => v
       <div className="flex items-center gap-3 px-4 py-2 border-b border-gray-100 bg-white">
         <h2 className="text-sm font-semibold text-gray-700">字幕翻译</h2>
         {fileName && (
-          <span className="text-xs text-gray-400">{fileName}</span>
+          <input
+            type="text"
+            value={fileName}
+            onChange={(e) => setFileName(e.target.value)}
+            className="text-xs text-gray-600 bg-transparent border-b border-gray-300 hover:border-gray-400 focus:border-blue-400 outline-none px-1 py-0.5 w-48"
+            title="可修改文件名，导出时作为默认名称"
+          />
         )}
       </div>
 
@@ -327,6 +351,37 @@ export default function TranslatorPage({ onOpenApiKey }: { onOpenApiKey: () => v
         onSaveAndClear={handleSaveAndClear}
         hasSubtitles={subtitles.filter((s) => s.translation).length > 0}
       />
+
+      {/* Re-translate confirmation */}
+      {showRetranslateConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-2xl w-[400px]">
+            <div className="px-5 py-4 border-b border-gray-200">
+              <h2 className="text-base font-semibold text-gray-800">重新翻译</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                当前已有 {subtitles.filter((s) => s.translation).length} 条译文，重新翻译将覆盖现有译文。AI 会使用不同表达方式生成新版本。
+              </p>
+            </div>
+            <div className="px-5 py-4 flex justify-end gap-2">
+              <button
+                onClick={() => setShowRetranslateConfirm(false)}
+                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => {
+                  setShowRetranslateConfirm(false);
+                  doTranslate(true);
+                }}
+                className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700"
+              >
+                确认重新翻译
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -34,7 +34,7 @@ export default function SubtitleList({ onRetranslate }: SubtitleListProps) {
       <div className="flex-1 overflow-y-auto">
         {subtitles.length === 0 ? (
           <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-            请上传 SRT 文件开始翻译
+            上传 SRT 文件，设置 API Key，即可开始翻译
           </div>
         ) : (
           subtitles.map((sub, idx) => (
