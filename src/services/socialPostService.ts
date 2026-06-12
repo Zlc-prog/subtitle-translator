@@ -1,6 +1,51 @@
 import { Platform, PostLanguage, PostType, PostGenerationConfig } from "../types/socialPost";
+import { pinyin } from "pinyin-pro";
 
 const API_BASE = "https://api.deepseek.com/v1/chat/completions";
+
+// ─────────────────────────────────────────────────────
+// Name conversion (Chinese → Pinyin)
+// ─────────────────────────────────────────────────────
+
+// Common Chinese compound surnames (复姓)
+const COMPOUND_SURNAMES = new Set([
+  "欧阳", "司马", "上官", "诸葛", "东方", "独孤", "南宫", "夏侯",
+  "尉迟", "公孙", "慕容", "司徒", "司空", "端木", "皇甫", "令狐",
+  "宇文", "长孙", "慕容", "鲜于", "闾丘", "澹台", "宗政", "濮阳",
+  "淳于", "单于", "太叔", "申屠", "闻人", "仲孙", "轩辕", "巫马",
+  "公西", "颛孙", "壤驷", "公良", "漆雕", "乐正", "宰父", "谷梁",
+  "拓跋", "夹谷", "段干", "百里", "呼延", "东郭", "南门", "羊舌",
+  "微生", "梁丘", "左丘", "东门", "西门",
+]);
+
+function toEnglishName(name: string): string {
+  const trimmed = name.trim();
+  // If already Latin, return as-is
+  if (/^[a-zA-Z\s.\-]+$/.test(trimmed)) return trimmed;
+
+  // Detect compound surname vs single-character surname
+  let surname: string;
+  let given: string;
+  if (trimmed.length >= 2 && COMPOUND_SURNAMES.has(trimmed.slice(0, 2))) {
+    surname = trimmed.slice(0, 2);
+    given = trimmed.slice(2);
+  } else {
+    surname = trimmed.charAt(0);
+    given = trimmed.slice(1);
+  }
+
+  // Convert surname: characters joined, first letter uppercase
+  const surnamePinyin = pinyin(surname, { toneType: "none", type: "array", v: true }) as string[];
+  const surnameStr = surnamePinyin.join("").toLowerCase();
+  const surnameFinal = surnameStr.charAt(0).toUpperCase() + surnameStr.slice(1);
+
+  // Convert given name: characters joined without spaces, first letter uppercase
+  const givenPinyin = pinyin(given, { toneType: "none", type: "array", v: true }) as string[];
+  const givenStr = givenPinyin.join("").toLowerCase();
+  const givenFinal = givenStr ? givenStr.charAt(0).toUpperCase() + givenStr.slice(1) : "";
+
+  return givenFinal ? `${surnameFinal} ${givenFinal}` : surnameFinal;
+}
 const MODEL = "deepseek-chat";
 const TEMPERATURE = 0.5;
 const MAX_TOKENS = 2048;
@@ -408,9 +453,9 @@ export async function generatePost(
 
   // Photographer credit for Instagram English posts
   const hasCredit = config.platform === "instagram" && config.language === "english" && config.photographers.length > 0;
+  const creditNames = hasCredit ? config.photographers.map(toEnglishName).join(", ") : "";
   if (hasCredit) {
-    const names = config.photographers.join(", ");
-    systemPrompt += `\n\n【Photographer Credit】The photographer(s) for this video: ${names}. After writing the caption, include a credit line in this exact format above the hashtags (no blank line between credit and hashtags):\n📷 ${names}`;
+    systemPrompt += `\n\n【Photographer Credit】The photographer(s) for this video: ${creditNames}. After writing the caption, include a credit line in this exact format above the hashtags (no blank line between credit and hashtags):\n📷 ${creditNames}`;
   }
 
   const userMessage = buildUserMessage(translations, config.language);
@@ -418,7 +463,7 @@ export async function generatePost(
 
   // Post-process: ensure credit line is placed correctly before hashtags
   if (hasCredit) {
-    const names = config.photographers.join(", ");
+    const names = creditNames;
     const creditLine = `📷 ${names}`;
 
     // If credit line already exists (correctly or incorrectly placed), skip insertion
