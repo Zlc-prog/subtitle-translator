@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import SplitterConfig from "../components/SplitterConfig";
 import SplitterPreview from "../components/SplitterPreview";
 import ClearConfirmModal from "../components/ClearConfirmModal";
@@ -11,6 +11,7 @@ import { save } from "@tauri-apps/plugin-dialog";
 
 export default function SubtitleSplitterPage() {
   const apiKey = useSubtitleStore((s) => s.apiKey);
+  const setSplitterResult = useSubtitleStore((s) => s.setSplitterResult);
 
   const [inputText, setInputText] = useState("");
   const [maxWords, setMaxWords] = useState(15);
@@ -22,6 +23,11 @@ export default function SubtitleSplitterPage() {
   const [subtitles, setSubtitles] = useState<Subtitle[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showClear, setShowClear] = useState(false);
+
+  // Sync to store for cross-page access
+  useEffect(() => {
+    setSplitterResult(subtitles);
+  }, [subtitles, setSplitterResult]);
 
   const handleGenerate = useCallback(async () => {
     if (!inputText.trim() || !apiKey) return;

@@ -6,9 +6,16 @@ import { parseSrt, serializeSrt } from "../utils/srtParser";
 import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { useSubtitleStore } from "../stores/subtitleStore";
 
 export default function SubtitleEditorPage() {
   const [subtitles, setLocalSubtitles] = useState<Subtitle[]>([]);
+  const setEditorSubtitles = useSubtitleStore((s) => s.setEditorSubtitles);
+
+  // Sync to store for cross-page access
+  useEffect(() => {
+    setEditorSubtitles(subtitles);
+  }, [subtitles, setEditorSubtitles]);
   const [fileName, setLocalFileName] = useState("");
   const [showClear, setShowClear] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);

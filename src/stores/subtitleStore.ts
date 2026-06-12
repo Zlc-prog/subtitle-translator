@@ -28,6 +28,10 @@ interface SubtitleState {
   autoSaveTime: number;
   undoStack: UndoSnapshot[];
 
+  // Cross-page data for social post generation
+  editorSubtitles: Subtitle[];
+  splitterResult: Subtitle[];
+
   setSubtitles: (subtitles: Subtitle[]) => void;
   setTranslation: (index: number, translation: string) => void;
   setSubtitleText: (index: number, text: string) => void;
@@ -44,6 +48,8 @@ interface SubtitleState {
   applyPendingTranslations: () => void;
   undo: () => void;
   reset: () => void;
+  setEditorSubtitles: (subtitles: Subtitle[]) => void;
+  setSplitterResult: (subtitles: Subtitle[]) => void;
 }
 
 export const useSubtitleStore = create<SubtitleState>((set) => ({
@@ -57,6 +63,10 @@ export const useSubtitleStore = create<SubtitleState>((set) => ({
   pendingTranslations: {},
   autoSaveTime: 0,
   undoStack: [],
+
+  // Cross-page data for social post generation
+  editorSubtitles: [],
+  splitterResult: [],
 
   setSubtitles: (subtitles) =>
     set((state) => ({
@@ -133,5 +143,10 @@ export const useSubtitleStore = create<SubtitleState>((set) => ({
       pendingTranslations: {},
       autoSaveTime: 0,
       undoStack: [],
+      editorSubtitles: [],
+      splitterResult: [],
     }),
+
+  setEditorSubtitles: (subtitles) => set({ editorSubtitles: subtitles }),
+  setSplitterResult: (subtitles) => set({ splitterResult: subtitles }),
 }));

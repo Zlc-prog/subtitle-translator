@@ -3,6 +3,7 @@ import AppLayout from "./components/layout/AppLayout";
 import TranslatorPage from "./pages/TranslatorPage";
 import SubtitleSplitterPage from "./pages/SubtitleSplitterPage";
 import SubtitleEditorPage from "./pages/SubtitleEditorPage";
+import VideoPostPage from "./pages/VideoPostPage";
 import ApiKeyModal from "./components/ApiKeyModal";
 import { useSubtitleStore } from "./stores/subtitleStore";
 
@@ -31,6 +32,7 @@ export default function App() {
       {page === "translator" && <TranslatorPage onOpenApiKey={openApiKey} />}
       {page === "splitter" && <SubtitleSplitterPage />}
       {page === "editor" && <SubtitleEditorPage />}
+      {page === "social-post" && <VideoPostPage onOpenApiKey={openApiKey} />}
       <ApiKeyModal isOpen={showApiKey} onClose={() => setShowApiKey(false)} />
     </AppLayout>
   );

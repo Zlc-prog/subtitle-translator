@@ -4,6 +4,7 @@ const menuItems = [
   { key: "editor", label: "字幕修改" },
   { key: "translator", label: "字幕翻译" },
   { key: "splitter", label: "字幕分割" },
+  { key: "social-post", label: "标题和贴文" },
 ];
 
 interface SidebarProps {
@@ -50,7 +51,7 @@ export default function Sidebar({ active, onSelect, onOpenApiKey }: SidebarProps
           API Key
         </button>
         <div className="px-3 text-xs text-gray-400">
-          v1.0.0
+          v1.1.0
         </div>
       </div>
     </div>
