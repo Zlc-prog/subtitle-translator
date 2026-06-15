@@ -1,4 +1,14 @@
-import React from "react";
+import React, { useState } from "react";
+
+interface TitleHistoryEntry {
+  titles: string[];
+  timestamp: number;
+}
+
+interface PostHistoryEntry {
+  content: string;
+  timestamp: number;
+}
 
 interface VideoPostResultsProps {
   generatedTitles: string[];
@@ -15,6 +25,13 @@ interface VideoPostResultsProps {
   hasSubtitles: boolean;
   error: string | null;
   onRetry: () => void;
+  titleHistory: TitleHistoryEntry[];
+  postHistory: PostHistoryEntry[];
+}
+
+function formatHistoryTime(ts: number): string {
+  const d = new Date(ts);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
 }
 
 function TitleCard({
@@ -25,6 +42,7 @@ function TitleCard({
   onCopy,
   onRegenerate,
   copied,
+  titleHistory,
 }: {
   titles: string[];
   selectedIndex: number;
@@ -33,7 +51,10 @@ function TitleCard({
   onCopy: () => void;
   onRegenerate: () => void;
   copied: boolean;
+  titleHistory: TitleHistoryEntry[];
 }) {
+  const [historyExpanded, setHistoryExpanded] = useState(false);
+
   return (
     <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
       {/* Header */}
@@ -97,6 +118,40 @@ function TitleCard({
           <p className="text-sm text-gray-400">点击左侧「生成标题」按钮开始</p>
         )}
       </div>
+
+      {/* History */}
+      {titleHistory.length > 0 && (
+        <div className="border-t border-gray-100">
+          <button
+            onClick={() => setHistoryExpanded(!historyExpanded)}
+            className="w-full flex items-center gap-2 px-4 py-2 text-xs text-gray-500 hover:bg-gray-50 transition-colors"
+          >
+            <svg
+              className={`w-3 h-3 transition-transform ${historyExpanded ? "rotate-90" : ""}`}
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            历史生成记录 ({titleHistory.length})
+          </button>
+          {historyExpanded && (
+            <div className="px-4 pb-3 space-y-2 max-h-60 overflow-y-auto">
+              {titleHistory.map((entry, i) => (
+                <div key={i} className="border border-gray-100 rounded-lg p-2">
+                  <div className="text-[10px] text-gray-400 mb-1">
+                    {formatHistoryTime(entry.timestamp)}
+                  </div>
+                  {entry.titles.map((t, j) => (
+                    <div key={j} className="text-xs text-gray-600 leading-relaxed pl-2 border-l-2 border-gray-200 mb-0.5 last:mb-0">
+                      {t}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -107,13 +162,17 @@ function PostCard({
   onCopy,
   onRegenerate,
   copied,
+  postHistory,
 }: {
   content: string;
   isLoading: boolean;
   onCopy: () => void;
   onRegenerate: () => void;
   copied: boolean;
+  postHistory: PostHistoryEntry[];
 }) {
+  const [historyExpanded, setHistoryExpanded] = useState(false);
+
   return (
     <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
       {/* Header */}
@@ -157,6 +216,36 @@ function PostCard({
           <p className="text-sm text-gray-400">点击左侧「生成贴文」按钮开始</p>
         )}
       </div>
+
+      {/* History */}
+      {postHistory.length > 0 && (
+        <div className="border-t border-gray-100">
+          <button
+            onClick={() => setHistoryExpanded(!historyExpanded)}
+            className="w-full flex items-center gap-2 px-4 py-2 text-xs text-gray-500 hover:bg-gray-50 transition-colors"
+          >
+            <svg
+              className={`w-3 h-3 transition-transform ${historyExpanded ? "rotate-90" : ""}`}
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            历史生成记录 ({postHistory.length})
+          </button>
+          {historyExpanded && (
+            <div className="px-4 pb-3 space-y-2 max-h-60 overflow-y-auto">
+              {postHistory.map((entry, i) => (
+                <div key={i} className="border border-gray-100 rounded-lg p-2">
+                  <div className="text-[10px] text-gray-400 mb-1">
+                    {formatHistoryTime(entry.timestamp)}
+                  </div>
+                  <p className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed">{entry.content}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -176,6 +265,8 @@ export default function VideoPostResults({
   hasSubtitles,
   error,
   onRetry,
+  titleHistory,
+  postHistory,
 }: VideoPostResultsProps) {
   if (!hasSubtitles) {
     return (
@@ -214,6 +305,7 @@ export default function VideoPostResults({
         onCopy={onCopyTitle}
         onRegenerate={onRegenerateTitle}
         copied={copiedField === "title"}
+        titleHistory={titleHistory}
       />
 
       <PostCard
@@ -222,6 +314,7 @@ export default function VideoPostResults({
         onCopy={() => onCopyPost(generatedPost)}
         onRegenerate={onRegeneratePost}
         copied={copiedField === "post"}
+        postHistory={postHistory}
       />
     </div>
   );

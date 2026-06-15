@@ -107,3 +107,44 @@ export async function loadSession(): Promise<SessionData | null> {
     return null;
   }
 }
+
+// ─────────────────────────────────────────────────────
+// Editor session persistence
+// ─────────────────────────────────────────────────────
+
+const EDITOR_SESSION_FILE = "editor-session.json";
+const EDITOR_SESSION_KEY = "editor-session";
+
+interface EditorSessionData {
+  subtitles: Subtitle[];
+  fileName: string;
+}
+
+function getEditorSessionStore(): Promise<TauriStore> {
+  return import("@tauri-apps/plugin-store")
+    .then((m) => m.Store.load(EDITOR_SESSION_FILE))
+    .catch(() => {
+      throw new Error("Tauri store not available");
+    });
+}
+
+export async function saveEditorSession(data: EditorSessionData): Promise<void> {
+  try {
+    const store = await getEditorSessionStore();
+    await store.set(EDITOR_SESSION_KEY, JSON.stringify(data));
+    await store.save();
+  } catch {
+    // Silently fail
+  }
+}
+
+export async function loadEditorSession(): Promise<EditorSessionData | null> {
+  try {
+    const store = await getEditorSessionStore();
+    const raw = await store.get(EDITOR_SESSION_KEY);
+    if (raw) return JSON.parse(raw) as EditorSessionData;
+    return null;
+  } catch {
+    return null;
+  }
+}

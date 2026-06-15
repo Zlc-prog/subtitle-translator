@@ -1,7 +1,8 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import SplitterConfig from "../components/SplitterConfig";
 import SplitterPreview from "../components/SplitterPreview";
 import ClearConfirmModal from "../components/ClearConfirmModal";
+import DisclaimerModal from "../components/DisclaimerModal";
 import { useSubtitleStore } from "../stores/subtitleStore";
 import { splitTextWithAI, generateTimestamps } from "../services/splitterService";
 import { serializeSrt } from "../utils/srtParser";
@@ -23,6 +24,7 @@ export default function SubtitleSplitterPage() {
   const [subtitles, setSubtitles] = useState<Subtitle[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showClear, setShowClear] = useState(false);
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
 
   // Sync to store for cross-page access
   useEffect(() => {
@@ -55,31 +57,50 @@ export default function SubtitleSplitterPage() {
     }
   }, [inputText, maxWords, timingMode, wpm, durMin, durSec, apiKey]);
 
-  const handleExport = useCallback(async () => {
-    if (subtitles.length === 0) return;
+  const pendingExportAction = useRef<(() => void) | null>(null);
+
+  const doExport = useCallback(async () => {
+    const currentSubtitles = useSubtitleStore.getState().splitterResult;
+    // fallback to local state if store is empty
+    const subs = currentSubtitles.length > 0 ? currentSubtitles : subtitles;
+    if (subs.length === 0) return;
 
     try {
-      const srt = serializeSrt(subtitles);
+      const srt = serializeSrt(subs);
       const savePath = await save({
         defaultPath: "subtitles.srt",
         filters: [{ name: "字幕文件", extensions: ["srt"] }],
       });
-
       if (!savePath) return;
-
       await writeTextFile(savePath, srt);
-      alert("导出成功!");
     } catch (e: any) {
       alert(`导出失败: ${e.message ?? e}`);
     }
   }, [subtitles]);
 
-  const handleSaveAndClear = useCallback(async () => {
-    await handleExport();
-    setSubtitles([]);
-    storeSetSubtitles([]);
+  const handleExport = useCallback(() => {
+    if (subtitles.length === 0) return;
+    pendingExportAction.current = doExport;
+    setShowDisclaimer(true);
+  }, [subtitles, doExport]);
+
+  const handleDisclaimerConfirm = useCallback(() => {
+    setShowDisclaimer(false);
+    pendingExportAction.current?.();
+    pendingExportAction.current = null;
+  }, []);
+
+  const handleSaveAndClear = useCallback(() => {
+    if (subtitles.length === 0) return;
     setShowClear(false);
-  }, [handleExport, storeSetSubtitles]);
+    pendingExportAction.current = () => {
+      doExport().then(() => {
+        setSubtitles([]);
+        storeSetSubtitles([]);
+      });
+    };
+    setShowDisclaimer(true);
+  }, [subtitles, doExport, storeSetSubtitles]);
 
   const handleClearOnly = useCallback(() => {
     setSubtitles([]);
@@ -97,14 +118,19 @@ export default function SubtitleSplitterPage() {
           <h2 className="text-sm font-semibold text-gray-700">字幕分割</h2>
           <p className="text-xs text-gray-400 mt-0.5">输入文字，AI 自动分割为字幕并计算时长</p>
         </div>
-        {subtitles.length > 0 && (
-          <button
-            onClick={() => setShowClear(true)}
-            className="px-3 py-1.5 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-          >
-            清除
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-1">
+            AI 结果仅供参考，请务必手动编辑核验
+          </p>
+          {subtitles.length > 0 && (
+            <button
+              onClick={() => setShowClear(true)}
+              className="px-3 py-1.5 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+            >
+              清除
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Main content */}
@@ -151,6 +177,8 @@ export default function SubtitleSplitterPage() {
         onSaveAndClear={handleSaveAndClear}
         hasSubtitles={subtitles.length > 0}
       />
+
+      <DisclaimerModal isOpen={showDisclaimer} onConfirm={handleDisclaimerConfirm} />
     </div>
   );
 }

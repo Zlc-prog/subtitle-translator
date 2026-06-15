@@ -1,4 +1,5 @@
 import { Subtitle } from "../types/subtitle";
+import { normalizeQuotes } from "../utils/textNormalizer";
 
 const API_BASE = "https://api.deepseek.com/v1/chat/completions";
 
@@ -68,10 +69,10 @@ Output format: plain text, one subtitle per line, separated by newlines. No numb
   const data = await response.json();
   const raw: string = data.choices?.[0]?.message?.content ?? "";
 
-  // Parse lines, filter empty
+  // Parse lines, filter empty, normalize quotes
   return raw
     .split("\n")
-    .map((l: string) => l.trim())
+    .map((l: string) => normalizeQuotes(l.trim()))
     .filter((l: string) => l.length > 0);
 }
 

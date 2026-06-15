@@ -5,60 +5,34 @@ interface EditorLineProps {
   subtitle: Subtitle;
   index: number;
   total: number;
+  rows?: number;
   onTextChange: (index: number, text: string) => void;
   onTimeChange: (index: number, startTime: string, endTime: string) => void;
   onSplit: (index: number, cursorPos: number) => void;
   onMerge: (index: number) => void;
   onDelete: (index: number) => void;
+  onInsertBlank: (index: number) => void;
 }
 
-function countChars(text: string): number {
-  return text.replace(/[^一-鿿㐀-䶿a-zA-Z]/g, "").length;
-}
-
-function timeToSeconds(t: string): number {
-  const match = t.match(/(\d{2}):(\d{2}):(\d{2})[,.](\d{3})/);
-  if (!match) return 0;
-  return parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + parseInt(match[3]) + parseInt(match[4]) / 1000;
-}
-
-function secondsToTime(s: number): string {
-  let h = Math.floor(s / 3600);
-  let m = Math.floor((s % 3600) / 60);
-  let sec = Math.floor(s % 60);
-  let ms = Math.round((s - Math.floor(s)) * 1000);
-
-  // Handle rounding overflow: 999.5ms → 1000ms should carry into seconds
-  if (ms >= 1000) {
-    ms -= 1000;
-    sec += 1;
-  }
-  if (sec >= 60) {
-    sec -= 60;
-    m += 1;
-  }
-  if (m >= 60) {
-    m -= 60;
-    h += 1;
-  }
-
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}.${String(ms).padStart(3, "0")}`;
-}
-
-export default function EditorLine({
+const EditorLine = React.memo(function EditorLine({
   subtitle,
   index,
   total,
+  rows: propRows,
   onTextChange,
   onTimeChange,
   onSplit,
   onMerge,
   onDelete,
+  onInsertBlank,
 }: EditorLineProps) {
   const textRef = useRef<HTMLTextAreaElement>(null);
+  const isBlank = subtitle._blank;
+  const rows = propRows ?? Math.max(1, Math.ceil(subtitle.text.length / 60));
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (isBlank) return;
       const textarea = e.currentTarget;
       const cursor = textarea.selectionStart ?? 0;
 
@@ -72,73 +46,70 @@ export default function EditorLine({
         onMerge(index);
       }
     },
-    [index, onSplit, onMerge]
+    [index, onSplit, onMerge, isBlank]
   );
 
   return (
-    <div className="flex items-start gap-3 px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors group">
-      {/* Delete + Index */}
-      <div className="flex-shrink-0 flex items-start gap-1">
-        <button
-          onClick={() => onDelete(index)}
-          className="opacity-0 group-hover:opacity-100 transition-opacity px-1 py-0.5 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded"
-          title="删除此行"
-        >
-          ✕
-        </button>
-        <div className="w-6 pt-2 text-xs text-gray-400 font-medium">
-          #{index + 1}
+    <div className={`flex items-start gap-2 px-3 py-2 border-b border-gray-100 transition-colors group ${isBlank ? "bg-gray-50/30" : "hover:bg-gray-50"}`}>
+      {/* Left: delete + insert blank + index, timecodes below */}
+      <div className="flex-shrink-0 w-[84px]">
+        <div className="flex items-center gap-1 mb-0.5">
+          <button
+            onClick={() => onDelete(index)}
+            className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-red-400 hover:text-red-600 leading-none"
+            title="删除此行"
+          >
+            ✕
+          </button>
+          <button
+            onClick={() => onInsertBlank(index)}
+            className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-gray-400 hover:text-gray-600 leading-none"
+            title="插入空白行"
+          >
+            +
+          </button>
+          <span className="text-[10px] font-mono text-gray-400">#{index + 1}</span>
+        </div>
+        <div className="space-y-0.5">
+          <input
+            type="text"
+            value={isBlank ? "" : subtitle.startTime}
+            onChange={(e) => onTimeChange(index, e.target.value, subtitle.endTime)}
+            className={`w-full py-0.5 text-[10px] font-mono text-center border rounded outline-none bg-gray-50 ${isBlank ? "text-gray-300 border-gray-100 cursor-default" : "text-gray-600 border-gray-200 focus:ring-1 focus:ring-blue-400"}`}
+            placeholder="00:00:00,000"
+            readOnly={isBlank}
+          />
+          <input
+            type="text"
+            value={isBlank ? "" : subtitle.endTime}
+            onChange={(e) => onTimeChange(index, subtitle.startTime, e.target.value)}
+            className={`w-full py-0.5 text-[10px] font-mono text-center border rounded outline-none bg-gray-50 ${isBlank ? "text-gray-300 border-gray-100 cursor-default" : "text-gray-600 border-gray-200 focus:ring-1 focus:ring-blue-400"}`}
+            placeholder="00:00:00,000"
+            readOnly={isBlank}
+          />
         </div>
       </div>
 
-      {/* Timecodes */}
-      <div className="flex-shrink-0 flex items-center gap-1 pt-1">
-        <input
-          type="text"
-          value={subtitle.startTime}
-          onChange={(e) => onTimeChange(index, e.target.value, subtitle.endTime)}
-          className="w-28 px-1.5 py-1 text-xs font-mono text-gray-600 border border-gray-200 rounded outline-none focus:ring-1 focus:ring-blue-400 bg-gray-50"
-          placeholder="00:00:00,000"
-        />
-        <span className="text-xs text-gray-300">→</span>
-        <input
-          type="text"
-          value={subtitle.endTime}
-          onChange={(e) => onTimeChange(index, subtitle.startTime, e.target.value)}
-          className="w-28 px-1.5 py-1 text-xs font-mono text-gray-600 border border-gray-200 rounded outline-none focus:ring-1 focus:ring-blue-400 bg-gray-50"
-          placeholder="00:00:00,000"
-        />
-      </div>
-
-      {/* Text */}
-      <div className="flex-1 min-w-0">
+      {/* Text — top edge aligned with first timecode */}
+      <div className="flex-1 min-w-0 pt-[18px]">
         <textarea
           ref={textRef}
-          value={subtitle.text}
+          value={isBlank ? "" : subtitle.text}
           onChange={(e) => onTextChange(index, e.target.value)}
           onKeyDown={handleKeyDown}
-          className="w-full px-2 py-1.5 text-sm text-gray-800 border border-gray-200 rounded outline-none resize-none focus:ring-1 focus:ring-blue-400 leading-relaxed"
-          rows={Math.max(1, Math.ceil(subtitle.text.length / 60))}
+          className={`w-full px-2 py-1.5 text-sm border rounded outline-none resize-none leading-relaxed ${isBlank ? "text-gray-300 border-gray-100 bg-gray-50/30 cursor-default" : "text-gray-800 border-gray-200 focus:ring-1 focus:ring-blue-400"}`}
+          rows={isBlank ? 1 : rows}
           spellCheck={false}
+          readOnly={isBlank}
         />
-        <div className="text-xs text-gray-400 mt-0.5">
-          {subtitle.text.length} 字符 · Enter 拆分 · 开头 Backspace 合并
-        </div>
-      </div>
-
-      {/* Translation (read-only when exists) */}
-      {subtitle.translation && (
-        <div className="flex-1 min-w-0">
-          <div className="w-full px-2 py-1.5 text-sm text-blue-700 bg-blue-50/50 border border-blue-100 rounded leading-relaxed whitespace-pre-wrap">
+        {!isBlank && subtitle.translation && (
+          <div className="mt-1 text-sm text-blue-700 bg-blue-50/50 border border-blue-100 rounded px-2 py-1 leading-relaxed whitespace-pre-wrap">
             {subtitle.translation}
           </div>
-          <div className="text-xs text-blue-400 mt-0.5">
-            {subtitle.translation.length} 字符 · 译文
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
-}
+});
 
-export { countChars, timeToSeconds, secondsToTime };
+export default EditorLine;

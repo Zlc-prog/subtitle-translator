@@ -22,7 +22,7 @@ export default function SplitterPreview({ subtitles, onExport }: SplitterPreview
         </span>
         <button
           onClick={onExport}
-          className="px-3 py-1 bg-purple-600 text-white rounded text-xs font-medium hover:bg-purple-700 transition-colors"
+          className="px-3 py-1 bg-slate-600 text-white rounded text-xs font-medium hover:bg-slate-700 transition-colors"
         >
           导出 SRT
         </button>

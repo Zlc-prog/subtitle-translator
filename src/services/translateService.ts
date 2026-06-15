@@ -1,5 +1,6 @@
 import { Subtitle, TranslationRules, DEFAULT_BASE_INSTRUCTIONS } from "../types/subtitle";
 import { parseSentenceGroups, isFillerLine } from "../utils/sentenceGrouper";
+import { normalizeQuotes } from "../utils/textNormalizer";
 
 const API_BASE = "https://api.deepseek.com/v1/chat/completions";
 
@@ -112,7 +113,8 @@ export async function translateGroup(
 
     if (!response.ok) return [""];
     const data = await response.json();
-    return [data.choices?.[0]?.message?.content?.trim() ?? ""];
+    const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
+    return [normalizeQuotes(raw)];
   }
 
   // Multi-line group: translate together, split into N segments
@@ -153,14 +155,14 @@ export async function translateGroup(
     if (match) {
       const idx = parseInt(match[1], 10);
       if (idx >= 0 && idx < segmentCount) {
-        segments[idx] = match[2].trim();
+        segments[idx] = normalizeQuotes(match[2].trim());
       }
     }
   }
 
   // If parsing produced no results, use whole text for first segment
   if (segments.every((s) => !s)) {
-    segments[0] = raw.trim();
+    segments[0] = normalizeQuotes(raw.trim());
   }
 
   return segments;
@@ -217,7 +219,7 @@ export async function translateBatch(
     const match = line.match(/^\[(\d+)\]\s*(.+)/);
     if (match) {
       const idx = parseInt(match[1], 10);
-      results[idx] = match[2].trim();
+      results[idx] = normalizeQuotes(match[2].trim());
     }
   }
 
@@ -274,5 +276,5 @@ export async function translateOne(
   }
 
   const data = await response.json();
-  return (data.choices?.[0]?.message?.content ?? "").trim();
+  return normalizeQuotes((data.choices?.[0]?.message?.content ?? "").trim());
 }

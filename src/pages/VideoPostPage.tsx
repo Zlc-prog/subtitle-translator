@@ -4,6 +4,7 @@ import { Platform, PostLanguage, PostType, PlatformTag, PostGenerationConfig } f
 import { generateTitle, generatePost } from "../services/socialPostService";
 import VideoPostConfig from "../components/VideoPostConfig";
 import VideoPostResults from "../components/VideoPostResults";
+import DisclaimerModal from "../components/DisclaimerModal";
 import { parseSrt } from "../utils/srtParser";
 import { readTextFile, readFile } from "@tauri-apps/plugin-fs";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -20,6 +21,16 @@ const SOURCE_LABELS: Record<string, string> = {
   splitter: "字幕分割",
   editor: "字幕修改",
 };
+
+interface TitleHistoryEntry {
+  titles: string[];
+  timestamp: number;
+}
+
+interface PostHistoryEntry {
+  content: string;
+  timestamp: number;
+}
 
 export default function VideoPostPage({ onOpenApiKey }: VideoPostPageProps) {
   const subtitles = useSubtitleStore((s) => s.subtitles);
@@ -53,6 +64,13 @@ export default function VideoPostPage({ onOpenApiKey }: VideoPostPageProps) {
   const [copiedField, setCopiedField] = useState<"title" | "post" | null>(null);
   const [lastGeneratedType, setLastGeneratedType] = useState<"title" | "post" | null>(null);
 
+  // Title history
+  const [titleHistory, setTitleHistory] = useState<TitleHistoryEntry[]>([]);
+  const [postHistory, setPostHistory] = useState<PostHistoryEntry[]>([]);
+
+  // Disclaimer
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
+
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -84,6 +102,15 @@ export default function VideoPostPage({ onOpenApiKey }: VideoPostPageProps) {
   const config: PostGenerationConfig = { platform, language, postType, customInstructions, photographers };
   const canGenerate = !!apiKey && hasSource;
 
+  // ── Clear history when source changes ────────────────
+  const clearSourceRelated = useCallback(() => {
+    setGeneratedTitles([]);
+    setGeneratedPost("");
+    setTitleHistory([]);
+    setPostHistory([]);
+    setError(null);
+  }, []);
+
   // ── File upload ────────────────────────────────────
   const handleUpload = useCallback(async () => {
     const selected = await open({
@@ -99,7 +126,6 @@ export default function VideoPostPage({ onOpenApiKey }: VideoPostPageProps) {
       const ext = filePath.split(".").pop()?.toLowerCase();
 
       if (ext === "docx") {
-        // Word document — read binary via Tauri fs, then parse with mammoth
         const bytes = await readFile(filePath);
         const arrayBuffer = bytes.buffer.slice(
           bytes.byteOffset,
@@ -110,18 +136,17 @@ export default function VideoPostPage({ onOpenApiKey }: VideoPostPageProps) {
       } else if (ext === "srt") {
         const content = await readTextFile(filePath);
         const parsed = parseSrt(content);
-        // Extract text from all subtitles
         setSourceText(parsed.map((s) => s.text).join("\n"));
       } else {
-        // txt
         const content = await readTextFile(filePath);
         setSourceText(content.trim());
       }
       setImportedFrom(null);
+      clearSourceRelated();
     } catch (e: any) {
       alert(`读取文件失败: ${e.message ?? e}`);
     }
-  }, []);
+  }, [clearSourceRelated]);
 
   // ── Import from other pages ────────────────────────
   const handleImportFromApp = useCallback((source: ImportSource) => {
@@ -161,10 +186,11 @@ export default function VideoPostPage({ onOpenApiKey }: VideoPostPageProps) {
     if (found) {
       setSourceText(text);
       setImportedFrom(source);
+      clearSourceRelated();
     } else {
       alert(`「${SOURCE_LABELS[source]}」中暂无内容，请先在该功能中导入或生成字幕`);
     }
-  }, [subtitles, editorSubtitles, splitterResult]);
+  }, [subtitles, editorSubtitles, splitterResult, clearSourceRelated]);
 
   // ── Generation ─────────────────────────────────────
   const handleGenerateTitle = useCallback(async (previousTitles?: string[]) => {
@@ -175,6 +201,15 @@ export default function VideoPostPage({ onOpenApiKey }: VideoPostPageProps) {
     try {
       const text = sourceText.trim();
       const result = await generateTitle([text], config, apiKey, previousTitles);
+
+      // Push current titles to history before replacing
+      if (generatedTitles.length > 0) {
+        setTitleHistory((prev) => [
+          { titles: [...generatedTitles], timestamp: Date.now() },
+          ...prev.slice(0, 19), // keep last 20 entries
+        ]);
+      }
+
       setGeneratedTitles(result);
       setSelectedTitleIndex(0);
     } catch (e: any) {
@@ -182,7 +217,7 @@ export default function VideoPostPage({ onOpenApiKey }: VideoPostPageProps) {
     } finally {
       setIsGeneratingTitle(false);
     }
-  }, [canGenerate, sourceText, config, apiKey]);
+  }, [canGenerate, sourceText, config, apiKey, generatedTitles]);
 
   const handleGeneratePost = useCallback(async () => {
     if (!canGenerate) return;
@@ -192,6 +227,15 @@ export default function VideoPostPage({ onOpenApiKey }: VideoPostPageProps) {
     try {
       const text = sourceText.trim();
       const result = await generatePost([text], config, apiKey);
+
+      // Push current post to history before replacing
+      if (generatedPost) {
+        setPostHistory((prev) => [
+          { content: generatedPost, timestamp: Date.now() },
+          ...prev.slice(0, 19),
+        ]);
+      }
+
       setGeneratedPost(result);
     } catch (e: any) {
       setError(e.message ?? String(e));
@@ -206,6 +250,7 @@ export default function VideoPostPage({ onOpenApiKey }: VideoPostPageProps) {
       setCopiedField(field);
       if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
       copyTimerRef.current = setTimeout(() => setCopiedField(null), 1500);
+      setShowDisclaimer(true);
     } catch { /* clipboard unavailable */ }
   }, []);
 
@@ -237,6 +282,7 @@ export default function VideoPostPage({ onOpenApiKey }: VideoPostPageProps) {
         <h2 className="text-sm font-semibold text-gray-700">视频标题和贴文生成</h2>
         <span className="text-xs text-gray-300">·</span>
         <span className="text-xs text-gray-400">基于字幕内容 AI 自动生成</span>
+        <span className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-0.5">AI 结果仅供参考，请务必手动编辑核验</span>
         <div className="flex-1" />
         {!apiKey && (
           <button
@@ -289,6 +335,8 @@ export default function VideoPostPage({ onOpenApiKey }: VideoPostPageProps) {
               hasSubtitles={hasSource}
               error={error}
               onRetry={handleRetry}
+              titleHistory={titleHistory}
+              postHistory={postHistory}
             />
           </div>
 
@@ -335,7 +383,7 @@ export default function VideoPostPage({ onOpenApiKey }: VideoPostPageProps) {
                       <button
                         key={key}
                         onClick={() => handleImportFromApp(key)}
-                        className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                        className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-blue-50 hover:text-blue-800 transition-colors"
                       >
                         {SOURCE_LABELS[key]}
                       </button>
@@ -348,6 +396,7 @@ export default function VideoPostPage({ onOpenApiKey }: VideoPostPageProps) {
                 {charCount > 0 ? `${charCount.toLocaleString()} 字` : ""}
               </span>
             </div>
+
 
             {/* Photographer credit */}
             <div className="mt-3 pt-3 border-t border-gray-100">
@@ -401,6 +450,8 @@ export default function VideoPostPage({ onOpenApiKey }: VideoPostPageProps) {
           </div>
         </div>
       </div>
+
+      <DisclaimerModal isOpen={showDisclaimer} onConfirm={() => setShowDisclaimer(false)} />
     </div>
   );
 }

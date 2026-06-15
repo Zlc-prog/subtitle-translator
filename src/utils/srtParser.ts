@@ -37,8 +37,9 @@ export function parseSrt(content: string): Subtitle[] {
  */
 export function serializeSrt(subtitles: Subtitle[]): string {
   return subtitles
+    .filter((sub) => !sub._blank)
     .map((sub, i) => {
-      const index = sub.index ?? i + 1;
+      const index = i + 1;
       const start = sub.startTime.replace(".", ",");
       const end = sub.endTime.replace(".", ",");
       const text = sub.translation ?? sub.text;

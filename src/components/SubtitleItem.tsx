@@ -114,13 +114,13 @@ export default function SubtitleItem({
             onChange={(e) => setEditValue(e.target.value)}
             onBlur={saveEdit}
             onKeyDown={handleKeyDown}
-            className="w-full px-2 py-1 text-sm text-gray-800 border border-blue-400 rounded outline-none resize-none bg-blue-50"
+            className="w-full px-2 py-1 text-sm text-blue-900 border border-blue-400 rounded outline-none resize-none bg-blue-50"
             rows={1}
           />
         ) : (
           <div
             onClick={() => startEdit("text")}
-            className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed cursor-pointer rounded px-1 -mx-1 hover:bg-yellow-100 transition-colors"
+            className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed cursor-pointer rounded px-1 -mx-1 hover:bg-yellow-100 hover:text-yellow-900 transition-colors"
             title="点击编辑原文"
           >
             {subtitle.text}
@@ -189,7 +189,7 @@ export default function SubtitleItem({
           <button
             onClick={onRetranslate}
             disabled={isTranslating || !subtitle.translation}
-            className="px-2 py-0.5 text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="px-2 py-0.5 text-xs text-gray-400 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             title="重新翻译"
           >
             重新翻译

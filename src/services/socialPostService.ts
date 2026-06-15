@@ -1,5 +1,14 @@
 import { Platform, PostLanguage, PostType, PostGenerationConfig } from "../types/socialPost";
 import { pinyin } from "pinyin-pro";
+import { normalizeQuotes } from "../utils/textNormalizer";
+
+function normalizePost(text: string): string {
+  return text
+    // Hashtags to lowercase
+    .replace(/#(\w+)/g, (_, tag) => `#${tag.toLowerCase()}`)
+    // Capitalize after punctuation OR at start of any line
+    .replace(/(^|[.?!]\s+)([a-z])/gm, (_, prefix, letter) => prefix + letter.toUpperCase());
+}
 
 const API_BASE = "https://api.deepseek.com/v1/chat/completions";
 
@@ -368,9 +377,9 @@ async function callApi(systemPrompt: string, userMessage: string, apiKey: string
   }
 
   const data = await response.json();
-  const content = data.choices?.[0]?.message?.content?.trim() ?? "";
-  if (!content) throw new Error("AI 返回内容为空，请重试");
-  return content;
+  const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
+  if (!raw) throw new Error("AI 返回内容为空，请重试");
+  return normalizeQuotes(raw);
 }
 
 // ─────────────────────────────────────────────────────
@@ -459,7 +468,8 @@ export async function generatePost(
   }
 
   const userMessage = buildUserMessage(translations, config.language);
-  const result = await callApi(systemPrompt, userMessage, apiKey);
+  const raw = await callApi(systemPrompt, userMessage, apiKey);
+  const result = normalizePost(raw);
 
   // Post-process: ensure credit line is placed correctly before hashtags
   if (hasCredit) {

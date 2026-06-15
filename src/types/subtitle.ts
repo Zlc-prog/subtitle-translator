@@ -4,6 +4,7 @@ export interface Subtitle {
   endTime: string;
   text: string;
   translation?: string;
+  _blank?: boolean;
 }
 
 export interface ProperNoun {
@@ -30,6 +31,8 @@ export const DEFAULT_BASE_INSTRUCTIONS = `You are a professional subtitle colloq
 3. Colloquial requirements:
    - Use contractions (don't, can't, I'll, gonna, wanna — naturally, not forced), phrasal verbs (pick up, find out, run into).
    - Break long Chinese run-on sentences (3+ short clauses) into two or three concise English sentences separated by periods.
+   - When two clauses are short and closely related, omit the comma to keep the sentence flowing smoothly (e.g., "I saw it and I laughed" not "I saw it, and I laughed"). Only drop commas between short independent clauses joined by coordinating conjunctions.
+   - Abbreviate Chinese directional regions using standard compass codes: "north China" → "N China", "south China" → "S China", "east China" → "E China", "west China" → "W China", "northeast China" → "NE China", "northwest China" → "NW China", "southeast China" → "SE China", "southwest China" → "SW China".
    - Preserve tone: questions, exclamations, hesitations ("well", "uh", "you know", "like").
    - Add appropriate subjects for omitted ones (it, you, we, they).
 

@@ -65,6 +65,10 @@ export default function ReviewModal({ isOpen, onClose }: { isOpen: boolean; onCl
     setEditing(false);
   };
 
+  const cancelEdit = () => {
+    setEditing(false);
+  };
+
   const handleSkip = () => {
     if (current >= reviewItems.length - 1) {
       onClose();
@@ -148,9 +152,14 @@ export default function ReviewModal({ isOpen, onClose }: { isOpen: boolean; onCl
               跳过
             </button>
             {editing ? (
-              <button onClick={saveEdit} className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700">
-                保存修改
-              </button>
+              <>
+                <button onClick={cancelEdit} className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg">
+                  返回
+                </button>
+                <button onClick={saveEdit} className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700">
+                  保存修改
+                </button>
+              </>
             ) : (
               <>
                 <button onClick={handleAccept} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">

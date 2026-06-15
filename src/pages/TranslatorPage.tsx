@@ -4,6 +4,7 @@ import SubtitleList from "../components/SubtitleList";
 import RuleConfigModal from "../components/RuleConfigModal";
 import ReviewModal from "../components/ReviewModal";
 import ClearConfirmModal from "../components/ClearConfirmModal";
+import DisclaimerModal from "../components/DisclaimerModal";
 import StatusBar from "../components/StatusBar";
 import { useSubtitleStore } from "../stores/subtitleStore";
 import { splitSentences, translateGroup } from "../services/translateService";
@@ -18,6 +19,7 @@ export default function TranslatorPage({ onOpenApiKey }: { onOpenApiKey: () => v
   const [showReview, setShowReview] = useState(false);
   const [showClear, setShowClear] = useState(false);
   const [showRetranslateConfirm, setShowRetranslateConfirm] = useState(false);
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
 
   const {
@@ -236,66 +238,87 @@ export default function TranslatorPage({ onOpenApiKey }: { onOpenApiKey: () => v
     [apiKey, translationRules, setPendingTranslation]
   );
 
-  const handleExportSrt = useCallback(async () => {
-    if (subtitles.length === 0) return;
+  const pendingExportAction = useRef<(() => void) | null>(null);
 
+  const doExportSrt = useCallback(async () => {
+    const current = useSubtitleStore.getState();
+    if (current.subtitles.length === 0) return;
+    try {
+      const srt = serializeSrt(current.subtitles);
+      const defaultName = current.fileName || "output.srt";
+      const savePath = await save({
+        defaultPath: defaultName,
+        filters: [{ name: "字幕文件", extensions: ["srt"] }],
+      });
+      if (!savePath) return;
+      await writeTextFile(savePath, srt);
+    } catch (e: any) {
+      alert(`导出失败: ${e.message ?? e}`);
+    }
+  }, []);
+
+  const doExportTxt = useCallback(async () => {
+    const current = useSubtitleStore.getState();
+    if (current.subtitles.length === 0) return;
+    try {
+      const lines = current.subtitles
+        .map((s) => s.translation || s.text)
+        .filter((t) => t.trim());
+      if (lines.length === 0) return;
+      const txt = lines.join("\n");
+      const defaultName = current.fileName.replace(".srt", ".txt") || "output.txt";
+      const savePath = await save({
+        defaultPath: defaultName,
+        filters: [{ name: "文本文件", extensions: ["txt"] }],
+      });
+      if (!savePath) return;
+      await writeTextFile(savePath, txt);
+    } catch (e: any) {
+      alert(`导出失败: ${e.message ?? e}`);
+    }
+  }, []);
+
+  const handleDisclaimerConfirm = useCallback(() => {
+    setShowDisclaimer(false);
+    pendingExportAction.current?.();
+    pendingExportAction.current = null;
+  }, []);
+
+  const handleExportSrt = useCallback(() => {
+    if (subtitles.length === 0) return;
     const translated = subtitles.filter((s) => s.translation);
     if (translated.length === 0) {
       alert("没有已翻译的字幕可导出");
       return;
     }
+    pendingExportAction.current = doExportSrt;
+    setShowDisclaimer(true);
+  }, [subtitles, doExportSrt]);
 
-    try {
-      const srt = serializeSrt(subtitles);
-      const defaultName = useSubtitleStore.getState().fileName || "output.srt";
-      const savePath = await save({
-        defaultPath: defaultName,
-        filters: [{ name: "字幕文件", extensions: ["srt"] }],
-      });
-
-      if (!savePath) return;
-
-      await writeTextFile(savePath, srt);
-      alert("导出成功!");
-    } catch (e: any) {
-      alert(`导出失败: ${e.message ?? e}`);
-    }
-  }, [subtitles]);
-
-  const handleExportTxt = useCallback(async () => {
+  const handleExportTxt = useCallback(() => {
     if (subtitles.length === 0) return;
-
-    const lines = subtitles
-      .map((s) => s.translation || s.text)
-      .filter((t) => t.trim());
-
+    const lines = subtitles.map((s) => s.translation || s.text).filter((t) => t.trim());
     if (lines.length === 0) {
       alert("没有可导出的字幕文字");
       return;
     }
+    pendingExportAction.current = doExportTxt;
+    setShowDisclaimer(true);
+  }, [subtitles, doExportTxt]);
 
-    try {
-      const txt = lines.join("\n");
-      const defaultName = useSubtitleStore.getState().fileName.replace(".srt", ".txt") || "output.txt";
-      const savePath = await save({
-        defaultPath: defaultName,
-        filters: [{ name: "文本文件", extensions: ["txt"] }],
-      });
-
-      if (!savePath) return;
-
-      await writeTextFile(savePath, txt);
-      alert("导出成功!");
-    } catch (e: any) {
-      alert(`导出失败: ${e.message ?? e}`);
+  const handleSaveAndClear = useCallback(() => {
+    if (subtitles.length === 0) return;
+    const translated = subtitles.filter((s) => s.translation);
+    if (translated.length === 0) {
+      alert("没有已翻译的字幕可导出");
+      return;
     }
-  }, [subtitles]);
-
-  const handleSaveAndClear = useCallback(async () => {
-    await handleExportSrt();
     setShowClear(false);
-    reset();
-  }, [handleExportSrt, reset]);
+    pendingExportAction.current = () => {
+      doExportSrt().then(() => reset());
+    };
+    setShowDisclaimer(true);
+  }, [subtitles, doExportSrt, reset]);
 
   const handleClearOnly = useCallback(() => {
     reset();
@@ -316,6 +339,9 @@ export default function TranslatorPage({ onOpenApiKey }: { onOpenApiKey: () => v
             title="可修改文件名，导出时作为默认名称"
           />
         )}
+        <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-0.5">
+          AI 结果仅供参考，请务必手动编辑核验
+        </p>
       </div>
 
       <Toolbar
@@ -351,6 +377,8 @@ export default function TranslatorPage({ onOpenApiKey }: { onOpenApiKey: () => v
         onSaveAndClear={handleSaveAndClear}
         hasSubtitles={subtitles.filter((s) => s.translation).length > 0}
       />
+
+      <DisclaimerModal isOpen={showDisclaimer} onConfirm={handleDisclaimerConfirm} />
 
       {/* Re-translate confirmation */}
       {showRetranslateConfirm && (

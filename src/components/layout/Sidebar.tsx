@@ -51,7 +51,7 @@ export default function Sidebar({ active, onSelect, onOpenApiKey }: SidebarProps
           API Key
         </button>
         <div className="px-3 text-xs text-gray-400">
-          v1.1.2
+          v1.2.0
         </div>
       </div>
     </div>
