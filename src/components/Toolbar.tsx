@@ -1,9 +1,14 @@
 import React from "react";
 import { useSubtitleStore } from "../stores/subtitleStore";
 import { countReviewItems } from "./ReviewModal";
+import UploadMenu from "./UploadMenu";
+import ExportMenu from "./ExportMenu";
+import { ImportSource } from "./ImportFromAppMenu";
 
 interface ToolbarProps {
   onUpload: () => void;
+  importSources: ImportSource[];
+  onImport: (sourceKey: string) => void;
   onOpenRules: () => void;
   onTranslateAll: () => void;
   onExportSrt: () => void;
@@ -14,6 +19,8 @@ interface ToolbarProps {
 
 export default function Toolbar({
   onUpload,
+  importSources,
+  onImport,
   onOpenRules,
   onTranslateAll,
   onExportSrt,
@@ -32,12 +39,11 @@ export default function Toolbar({
 
   return (
     <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-200 shadow-sm">
-      <button
-        onClick={onUpload}
-        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-      >
-        上传 SRT
-      </button>
+      <UploadMenu
+        onUploadFile={onUpload}
+        importSources={importSources}
+        onImport={onImport}
+      />
 
       <button
         onClick={onTranslateAll}
@@ -83,21 +89,11 @@ export default function Toolbar({
 
       <div className="flex-1" />
 
-      <button
-        onClick={onExportSrt}
+      <ExportMenu
+        onExportSrt={onExportSrt}
+        onExportTxt={onExportTxt}
         disabled={subtitles.length === 0}
-        className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
-      >
-        导出 SRT
-      </button>
-
-      <button
-        onClick={onExportTxt}
-        disabled={subtitles.length === 0}
-        className="px-4 py-2 bg-slate-500 text-white rounded-lg hover:bg-slate-600 transition-colors text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
-      >
-        导出 TXT
-      </button>
+      />
     </div>
   );
 }

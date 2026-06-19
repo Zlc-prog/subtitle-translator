@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Subtitle } from "../types/subtitle";
 import { useSubtitleStore } from "../stores/subtitleStore";
+import RetranslatePopover, { RetranslateOptions } from "./RetranslatePopover";
+import VerifyPopover from "./VerifyPopover";
 
 const TAG_PATTERN = /\[[^\]]*请人工核校[^\]]*\]/;
 const TAG_PATTERN_G = /\[[^\]]*请人工核校[^\]]*\]/g;
@@ -26,8 +28,10 @@ function renderHighlighted(text: string, onTagClick: () => void) {
 interface SubtitleItemProps {
   subtitle: Subtitle;
   index: number;
-  onRetranslate: () => void;
+  onRetranslate: (options: RetranslateOptions) => void;
   isTranslating: boolean;
+  isHighlighted: boolean;
+  onSelectionChange: (indices: Set<number>) => void;
 }
 
 export default function SubtitleItem({
@@ -35,6 +39,8 @@ export default function SubtitleItem({
   index,
   onRetranslate,
   isTranslating,
+  isHighlighted,
+  onSelectionChange,
 }: SubtitleItemProps) {
   const setSubtitleText = useSubtitleStore((s) => s.setSubtitleText);
   const setTranslation = useSubtitleStore((s) => s.setTranslation);
@@ -42,10 +48,22 @@ export default function SubtitleItem({
   const applyPendingTranslations = useSubtitleStore((s) => s.applyPendingTranslations);
   const clearPendingTranslations = useSubtitleStore((s) => s.clearPendingTranslations);
   const pendingTranslation = useSubtitleStore((s) => s.pendingTranslations[index]);
+  const allSubtitles = useSubtitleStore((s) => s.subtitles);
+  const sentenceGroups = useSubtitleStore((s) => s.sentenceGroups);
 
   const [editingField, setEditingField] = useState<"text" | "translation" | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [showRetranslatePopover, setShowRetranslatePopover] = useState(false);
+  const [showVerifyPopover, setShowVerifyPopover] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const rowRef = useRef<HTMLDivElement>(null);
+
+  // Scroll row into view when a popover opens
+  useEffect(() => {
+    if ((showRetranslatePopover || showVerifyPopover) && rowRef.current) {
+      rowRef.current.scrollIntoView({ block: "start", behavior: "smooth" });
+    }
+  }, [showRetranslatePopover, showVerifyPopover]);
 
   useEffect(() => {
     if (editingField && textareaRef.current) {
@@ -84,7 +102,7 @@ export default function SubtitleItem({
   };
 
   return (
-    <div className="flex items-start gap-2 px-3 py-2 border-b border-gray-50 hover:bg-gray-50/50 transition-colors group">
+    <div ref={rowRef} className={`flex items-start gap-2 px-3 py-2 border-b border-gray-50 hover:bg-gray-50/50 transition-colors group ${isHighlighted ? "bg-blue-50 ring-1 ring-blue-200" : ""}`}>
       {/* Delete + Meta */}
       <div className="flex-shrink-0 w-20 pt-0.5">
         <div className="flex items-center justify-between">
@@ -167,7 +185,7 @@ export default function SubtitleItem({
       </div>
 
       {/* Actions */}
-      <div className="flex-shrink-0 flex flex-col gap-1 items-end pt-0.5">
+      <div className="flex-shrink-0 flex flex-col gap-1 items-end pt-0.5 relative">
         {hasPending ? (
           <>
             <button
@@ -186,14 +204,51 @@ export default function SubtitleItem({
             </button>
           </>
         ) : (
-          <button
-            onClick={onRetranslate}
-            disabled={isTranslating || !subtitle.translation}
-            className="px-2 py-0.5 text-xs text-gray-400 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-            title="重新翻译"
-          >
-            重新翻译
-          </button>
+          <>
+            <button
+              onClick={() => setShowRetranslatePopover(true)}
+              disabled={isTranslating || !subtitle.translation}
+              className="px-2 py-0.5 text-xs text-gray-400 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              title="重新翻译"
+            >
+              重新翻译
+            </button>
+            <button
+              onClick={() => setShowVerifyPopover(true)}
+              disabled={isTranslating || !subtitle.translation}
+              className="px-2 py-0.5 text-xs text-gray-400 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              title="核校翻译质量"
+            >
+              核校
+            </button>
+            {showRetranslatePopover && (
+              <RetranslatePopover
+                currentIndex={index}
+                subtitles={allSubtitles}
+                sentenceGroups={sentenceGroups}
+                onConfirm={(options) => {
+                  setShowRetranslatePopover(false);
+                  onRetranslate(options);
+                }}
+                onCancel={() => setShowRetranslatePopover(false)}
+                onSelectionChange={onSelectionChange}
+              />
+            )}
+            {showVerifyPopover && (
+              <VerifyPopover
+                currentIndex={index}
+                subtitles={allSubtitles}
+                sentenceGroups={sentenceGroups}
+                apiKey={useSubtitleStore.getState().apiKey}
+                onClose={() => setShowVerifyPopover(false)}
+                onSelectionChange={onSelectionChange}
+                onRetranslate={() => onRetranslate({
+                  mode: "context",
+                  contextIndices: sentenceGroups.find((g) => g.includes(index))?.filter((i) => i !== index) ?? [],
+                })}
+              />
+            )}
+          </>
         )}
       </div>
     </div>

@@ -1,7 +1,10 @@
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import ClearConfirmModal from "../components/ClearConfirmModal";
 import EditorLine from "../components/EditorLine";
 import ReferenceLine from "../components/ReferenceLine";
+import UploadMenu from "../components/UploadMenu";
+import ExportMenu from "../components/ExportMenu";
+import { ImportSource } from "../components/ImportFromAppMenu";
 import { parseSrt, serializeSrt } from "../utils/srtParser";
 import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { open, save } from "@tauri-apps/plugin-dialog";
@@ -37,7 +40,61 @@ export default function SubtitleEditorPage() {
   const [showRefMenu, setShowRefMenu] = React.useState(false);
   const [showPasteModal, setShowPasteModal] = React.useState(false);
   const [pasteText, setPasteText] = React.useState("");
+  const [importConfirm, setImportConfirm] = useState<ImportSource | null>(null);
   const refMenuRef = useRef<HTMLDivElement>(null);
+
+  // ── Import from other tabs ──────────────────────────
+  const editorSources: ImportSource[] = [
+    { key: "translator", label: "字幕翻译" },
+    { key: "splitter", label: "字幕分割" },
+  ];
+
+  const doImportToEditor = useCallback((sourceKey: string) => {
+    const state = useSubtitleStore.getState();
+
+    if (sourceKey === "splitter") {
+      if (state.splitterResult.length === 0) {
+        alert("「字幕分割」中暂无内容，请先生成字幕");
+        return;
+      }
+      loadEditorSubtitles(state.splitterResult.map((s) => ({ ...s })));
+      clearEditorReference();
+      setEditorFileName("");
+    } else if (sourceKey === "translator") {
+      if (state.subtitles.length === 0) {
+        alert("「字幕翻译」中暂无内容，请先导入字幕");
+        return;
+      }
+      const hasTranslation = state.subtitles.some((s) => s.translation);
+      if (hasTranslation) {
+        // Mode: translations → editor text, originals → reference
+        // Untranslated lines: reference = original, editor text empty
+        const editorSubs = state.subtitles.map((s) => ({
+          ...s,
+          text: s.translation ?? "",
+        }));
+        const refSubs = state.subtitles.map((s) => ({ ...s }));
+        loadEditorSubtitles(editorSubs);
+        loadEditorReference(refSubs);
+        setEditorFileName(state.fileName || "");
+      } else {
+        // No translations: originals → editor, no reference
+        loadEditorSubtitles(state.subtitles.map((s) => ({ ...s })));
+        clearEditorReference();
+        setEditorFileName(state.fileName || "");
+      }
+    }
+    setImportConfirm(null);
+  }, [loadEditorSubtitles, clearEditorReference, setEditorFileName, loadEditorReference]);
+
+  const handleImportToEditor = useCallback((sourceKey: string) => {
+    if (editorSubtitles.length > 0) {
+      const source = editorSources.find((s) => s.key === sourceKey);
+      if (source) setImportConfirm(source);
+    } else {
+      doImportToEditor(sourceKey);
+    }
+  }, [editorSubtitles.length, doImportToEditor, editorSources]);
 
   const loadSrtFile = useCallback(async (filePath: string) => {
     try {
@@ -166,7 +223,6 @@ export default function SubtitleEditorPage() {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
-    if (editorSubtitles.length === 0) return;
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       saveEditorSession({
@@ -189,7 +245,6 @@ export default function SubtitleEditorPage() {
   }, [editorSubtitles, editorFileName]);
 
   const handleExport = useCallback(async () => {
-    if (editorSubtitles.length === 0) return;
     try {
       const srt = serializeSrt(editorSubtitles);
       const defaultName = editorFileName || "output.srt";
@@ -203,7 +258,6 @@ export default function SubtitleEditorPage() {
   }, [editorSubtitles, editorFileName]);
 
   const handleExportTxt = useCallback(async () => {
-    if (editorSubtitles.length === 0) return;
     const lines = editorSubtitles.filter((s) => !s._blank).map((s) => s.text).filter((t) => t.trim());
     if (lines.length === 0) {
       alert("没有可导出的字幕文字");
@@ -259,15 +313,16 @@ export default function SubtitleEditorPage() {
         )}
         <span className="text-xs text-gray-300 flex-shrink-0">· {editorSubtitles.length} 条</span>
         <div className="flex-1" />
-        <button onClick={handleUpload} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex-shrink-0">
-          上传 SRT
-        </button>
-        <button onClick={handleExport} disabled={editorSubtitles.length === 0} className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors text-sm font-medium disabled:opacity-40 flex-shrink-0">
-          导出 SRT
-        </button>
-        <button onClick={handleExportTxt} disabled={editorSubtitles.length === 0} className="px-4 py-2 bg-slate-500 text-white rounded-lg hover:bg-slate-600 transition-colors text-sm font-medium disabled:opacity-40 flex-shrink-0">
-          导出 TXT
-        </button>
+        <UploadMenu
+          onUploadFile={handleUpload}
+          importSources={editorSources}
+          onImport={handleImportToEditor}
+        />
+        <ExportMenu
+          onExportSrt={handleExport}
+          onExportTxt={handleExportTxt}
+          disabled={editorSubtitles.length === 0}
+        />
         <span className="text-gray-200 flex-shrink-0">|</span>
         {/* Reference dropdown */}
         <div className="relative flex-shrink-0" ref={refMenuRef}>
@@ -453,6 +508,34 @@ export default function SubtitleEditorPage() {
         onSaveAndClear={handleSaveAndClear}
         hasSubtitles={editorSubtitles.length > 0}
       />
+
+      {/* Import confirmation */}
+      {importConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-2xl w-[400px]">
+            <div className="px-5 py-4 border-b border-gray-200">
+              <h2 className="text-base font-semibold text-gray-800">从软件获取字幕</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                当前已有 {editorSubtitles.length} 条字幕，从「{importConfirm.label}」导入将覆盖现有内容。是否继续？
+              </p>
+            </div>
+            <div className="px-5 py-4 flex justify-end gap-2">
+              <button
+                onClick={() => setImportConfirm(null)}
+                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => doImportToEditor(importConfirm.key)}
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                确认覆盖
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
+import SocialVerifyPopover from "./SocialVerifyPopover";
+import { SocialVerificationResult, verifyTitle, verifyPost } from "../services/socialPostService";
 
 interface TitleHistoryEntry {
   titles: string[];
@@ -27,6 +29,7 @@ interface VideoPostResultsProps {
   onRetry: () => void;
   titleHistory: TitleHistoryEntry[];
   postHistory: PostHistoryEntry[];
+  apiKey: string;
 }
 
 function formatHistoryTime(ts: number): string {
@@ -43,6 +46,7 @@ function TitleCard({
   onRegenerate,
   copied,
   titleHistory,
+  apiKey,
 }: {
   titles: string[];
   selectedIndex: number;
@@ -52,8 +56,16 @@ function TitleCard({
   onRegenerate: () => void;
   copied: boolean;
   titleHistory: TitleHistoryEntry[];
+  apiKey: string;
 }) {
   const [historyExpanded, setHistoryExpanded] = useState(false);
+  const [showVerify, setShowVerify] = useState(false);
+
+  const selectedTitle = titles[selectedIndex] ?? "";
+
+  const handleVerify = useCallback(async (): Promise<SocialVerificationResult> => {
+    return verifyTitle(selectedTitle, apiKey);
+  }, [selectedTitle, apiKey]);
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -64,6 +76,21 @@ function TitleCard({
         <div className="flex-1" />
         {titles.length > 0 && !isLoading && (
           <>
+            <div className="relative">
+              <button
+                onClick={() => setShowVerify(!showVerify)}
+                className="px-3 py-1 rounded text-xs font-medium text-emerald-600 hover:bg-emerald-50 transition-colors"
+              >
+                核校
+              </button>
+              {showVerify && (
+                <SocialVerifyPopover
+                  content={selectedTitle}
+                  onVerify={handleVerify}
+                  onClose={() => setShowVerify(false)}
+                />
+              )}
+            </div>
             <button
               onClick={onCopy}
               className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
@@ -163,6 +190,7 @@ function PostCard({
   onRegenerate,
   copied,
   postHistory,
+  apiKey,
 }: {
   content: string;
   isLoading: boolean;
@@ -170,8 +198,14 @@ function PostCard({
   onRegenerate: () => void;
   copied: boolean;
   postHistory: PostHistoryEntry[];
+  apiKey: string;
 }) {
   const [historyExpanded, setHistoryExpanded] = useState(false);
+  const [showVerify, setShowVerify] = useState(false);
+
+  const handleVerify = useCallback(async (): Promise<SocialVerificationResult> => {
+    return verifyPost(content, apiKey);
+  }, [content, apiKey]);
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -182,6 +216,21 @@ function PostCard({
         <div className="flex-1" />
         {content && !isLoading && (
           <>
+            <div className="relative">
+              <button
+                onClick={() => setShowVerify(!showVerify)}
+                className="px-3 py-1 rounded text-xs font-medium text-emerald-600 hover:bg-emerald-50 transition-colors"
+              >
+                核校
+              </button>
+              {showVerify && (
+                <SocialVerifyPopover
+                  content={content}
+                  onVerify={handleVerify}
+                  onClose={() => setShowVerify(false)}
+                />
+              )}
+            </div>
             <button
               onClick={onCopy}
               className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
@@ -267,6 +316,7 @@ export default function VideoPostResults({
   onRetry,
   titleHistory,
   postHistory,
+  apiKey,
 }: VideoPostResultsProps) {
   if (!hasSubtitles) {
     return (
@@ -306,6 +356,7 @@ export default function VideoPostResults({
         onRegenerate={onRegenerateTitle}
         copied={copiedField === "title"}
         titleHistory={titleHistory}
+        apiKey={apiKey}
       />
 
       <PostCard
@@ -315,6 +366,7 @@ export default function VideoPostResults({
         onRegenerate={onRegeneratePost}
         copied={copiedField === "post"}
         postHistory={postHistory}
+        apiKey={apiKey}
       />
     </div>
   );

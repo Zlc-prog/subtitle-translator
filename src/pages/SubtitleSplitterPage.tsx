@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import SplitterConfig from "../components/SplitterConfig";
 import SplitterPreview from "../components/SplitterPreview";
 import ClearConfirmModal from "../components/ClearConfirmModal";
@@ -6,12 +6,12 @@ import DisclaimerModal from "../components/DisclaimerModal";
 import { useSubtitleStore } from "../stores/subtitleStore";
 import { splitTextWithAI, generateTimestamps } from "../services/splitterService";
 import { serializeSrt } from "../utils/srtParser";
-import { Subtitle } from "../types/subtitle";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { save } from "@tauri-apps/plugin-dialog";
 
 export default function SubtitleSplitterPage() {
   const apiKey = useSubtitleStore((s) => s.apiKey);
+  const splitterResult = useSubtitleStore((s) => s.splitterResult);
   const setSplitterResult = useSubtitleStore((s) => s.setSplitterResult);
 
   const [inputText, setInputText] = useState("");
@@ -20,16 +20,9 @@ export default function SubtitleSplitterPage() {
   const [wpm, setWpm] = useState(160);
   const [durMin, setDurMin] = useState(0);
   const [durSec, setDurSec] = useState(30);
-  const storeSetSubtitles = useSubtitleStore((s) => s.setSubtitles);
-  const [subtitles, setSubtitles] = useState<Subtitle[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showClear, setShowClear] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
-
-  // Sync to store for cross-page access
-  useEffect(() => {
-    setSplitterResult(subtitles);
-  }, [subtitles, setSplitterResult]);
 
   const handleGenerate = useCallback(async () => {
     if (!inputText.trim() || !apiKey) return;
@@ -48,8 +41,7 @@ export default function SubtitleSplitterPage() {
       const totalSeconds = durMin * 60 + durSec;
       const result = generateTimestamps(lines, timingMode, wpm, totalSeconds);
 
-      setSubtitles(result);
-      storeSetSubtitles(result);
+      setSplitterResult(result);
     } catch (e: any) {
       alert(`生成字幕出错: ${e.message ?? e}`);
     } finally {
@@ -60,9 +52,7 @@ export default function SubtitleSplitterPage() {
   const pendingExportAction = useRef<(() => void) | null>(null);
 
   const doExport = useCallback(async () => {
-    const currentSubtitles = useSubtitleStore.getState().splitterResult;
-    // fallback to local state if store is empty
-    const subs = currentSubtitles.length > 0 ? currentSubtitles : subtitles;
+    const subs = useSubtitleStore.getState().splitterResult;
     if (subs.length === 0) return;
 
     try {
@@ -76,13 +66,13 @@ export default function SubtitleSplitterPage() {
     } catch (e: any) {
       alert(`导出失败: ${e.message ?? e}`);
     }
-  }, [subtitles]);
+  }, []);
 
   const handleExport = useCallback(() => {
-    if (subtitles.length === 0) return;
+    if (splitterResult.length === 0) return;
     pendingExportAction.current = doExport;
     setShowDisclaimer(true);
-  }, [subtitles, doExport]);
+  }, [splitterResult, doExport]);
 
   const handleDisclaimerConfirm = useCallback(() => {
     setShowDisclaimer(false);
@@ -91,22 +81,20 @@ export default function SubtitleSplitterPage() {
   }, []);
 
   const handleSaveAndClear = useCallback(() => {
-    if (subtitles.length === 0) return;
+    if (splitterResult.length === 0) return;
     setShowClear(false);
     pendingExportAction.current = () => {
       doExport().then(() => {
-        setSubtitles([]);
-        storeSetSubtitles([]);
+        setSplitterResult([]);
       });
     };
     setShowDisclaimer(true);
-  }, [subtitles, doExport, storeSetSubtitles]);
+  }, [splitterResult, doExport, setSplitterResult]);
 
   const handleClearOnly = useCallback(() => {
-    setSubtitles([]);
-    storeSetSubtitles([]);
+    setSplitterResult([]);
     setShowClear(false);
-  }, [storeSetSubtitles]);
+  }, [setSplitterResult]);
 
   const hasText = inputText.trim().length > 0;
 
@@ -122,7 +110,7 @@ export default function SubtitleSplitterPage() {
           <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-1">
             AI 结果仅供参考，请务必手动编辑核验
           </p>
-          {subtitles.length > 0 && (
+          {splitterResult.length > 0 && (
             <button
               onClick={() => setShowClear(true)}
               className="px-3 py-1.5 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
@@ -149,7 +137,7 @@ export default function SubtitleSplitterPage() {
           />
 
           {/* Preview */}
-          <SplitterPreview subtitles={subtitles} onExport={handleExport} />
+          <SplitterPreview subtitles={splitterResult} onExport={handleExport} />
         </div>
 
         {/* Config panel */}
@@ -175,7 +163,7 @@ export default function SubtitleSplitterPage() {
         onClose={() => setShowClear(false)}
         onClearOnly={handleClearOnly}
         onSaveAndClear={handleSaveAndClear}
-        hasSubtitles={subtitles.length > 0}
+        hasSubtitles={splitterResult.length > 0}
       />
 
       <DisclaimerModal isOpen={showDisclaimer} onConfirm={handleDisclaimerConfirm} />

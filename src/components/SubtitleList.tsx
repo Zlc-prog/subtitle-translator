@@ -1,15 +1,22 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
 import { useSubtitleStore } from "../stores/subtitleStore";
 import SubtitleItem from "./SubtitleItem";
+import { RetranslateOptions } from "./RetranslatePopover";
 
 interface SubtitleListProps {
-  onRetranslate: (index: number) => void;
+  onRetranslate: (index: number, options: RetranslateOptions) => void;
 }
 
 export default function SubtitleList({ onRetranslate }: SubtitleListProps) {
   const subtitles = useSubtitleStore((s) => s.subtitles);
   const isTranslating = useSubtitleStore((s) => s.isTranslating);
   const translatedCount = useSubtitleStore((s) => s.translatedCount);
+
+  const [highlightedIndices, setHighlightedIndices] = useState<Set<number>>(new Set());
+
+  const handleSelectionChange = useCallback((indices: Set<number>) => {
+    setHighlightedIndices(indices);
+  }, []);
 
   const total = subtitles.length;
   const pct = total > 0 ? Math.round((translatedCount / total) * 100) : 0;
@@ -42,8 +49,10 @@ export default function SubtitleList({ onRetranslate }: SubtitleListProps) {
               key={sub.index || idx}
               subtitle={sub}
               index={idx}
-              onRetranslate={() => onRetranslate(idx)}
+              onRetranslate={(options) => onRetranslate(idx, options)}
               isTranslating={isTranslating}
+              isHighlighted={highlightedIndices.has(idx)}
+              onSelectionChange={handleSelectionChange}
             />
           ))
         )}

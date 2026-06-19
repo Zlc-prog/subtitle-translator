@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SubEditor 使用教程 v1.2.0</title>
+<style>
+  body { max-width: 800px; margin: 40px auto; padding: 0 20px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.8; color: #333; }
+  h1 { color: #1a1a2e; text-align: center; font-size: 28px; margin-bottom: 8px; }
+  .subtitle { text-align: center; color: #6b7280; margin-bottom: 40px; }
+  h2 { color: #2563eb; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; margin-top: 48px; }
+  h3 { color: #374151; margin-top: 28px; }
+  code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 14px; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+  td, th { border: 1px solid #e5e7eb; padding: 10px 14px; text-align: left; }
+  th { background: #f8fafc; font-weight: 600; }
+  blockquote { border-left: 4px solid #f59e0b; background: #fffbeb; padding: 12px 16px; margin: 16px 0; color: #92400e; border-radius: 0 8px 8px 0; }
+  ul, ol { padding-left: 24px; }
+  li { margin: 6px 0; }
+  strong { color: #1e40af; }
+  .shot { border: 2px dashed #d1d5db; border-radius: 12px; padding: 50px 20px; text-align: center; background: #f9fafb; margin: 24px 0; color: #9ca3af; font-size: 14px; }
+  .shot b { display: block; font-size: 18px; margin-top: 8px; color: #6b7280; }
+  .footer { text-align: center; color: #9ca3af; font-size: 12px; margin-top: 60px; border-top: 1px solid #e5e7eb; padding-top: 20px; }
+  a { color: #2563eb; }
+</style>
+</head>
+<body>
+
+<h1>SubEditor 使用教程</h1>
+<p class="subtitle">AI 驱动的字幕处理工具 — 翻译、编辑、分割、贴文生成</p>
+
+<h2>1. 安装与 API Key 设置</h2>
+
+<h3>安装</h3>
+<ol>
+  <li>从 <a href="https://github.com/Zlc-prog/subtitle-translator/releases">GitHub Releases</a> 下载最新 <code>.dmg</code> 文件</li>
+  <li>双击打开 <code>.dmg</code>，将 <strong>SubEditor</strong> 拖入 Applications 文件夹</li>
+</ol>
+
+<h4>如果提示「文件已损坏」或「无法验证开发者」</h4>
+
+<p>由于未经过 Apple 官方签名，首次打开可能出现以下提示：</p>
+<ul>
+  <li><strong>"SubEditor" 已损坏，无法打开</strong></li>
+  <li><strong>无法打开"SubEditor"，因为无法验证开发者</strong></li>
+</ul>
+
+<p><strong>解决方法（二选一）：</strong></p>
+
+<p><strong>方法一：右键打开</strong></p>
+<ol>
+  <li>在 Applications 文件夹中找到 SubEditor</li>
+  <li><strong>右键点击</strong>（或按住 Control 点击）→ 选择「打开」</li>
+  <li>弹出提示框后，点击「打开」按钮即可</li>
+</ol>
+
+<p><strong>方法二：终端解除隔离属性</strong></p>
+<ol>
+  <li>打开「终端」App（在 Applications / Utilities 中）</li>
+  <li>粘贴以下命令并回车：</li>
+</ol>
+<pre><code>xattr -cr /Applications/SubEditor.app</code></pre>
+<ol start="3">
+  <li>完成后即可正常打开 SubEditor</li>
+</ol>
+
+<blockquote>此命令仅移除 macOS 对未签名应用的安全标记，不会修改应用本身。</blockquote>
+
+<h3>设置 API Key</h3>
+<ol>
+  <li>点击左侧边栏底部 <strong>API Key</strong></li>
+  <li>输入 DeepSeek API Key（<code>sk-...</code>）</li>
+  <li>点击 <strong>保存</strong></li>
+</ol>
+
+<blockquote>API Key 仅存储在本地，重启后自动加载，无需重复输入。</blockquote>
+
+<img src="screenshots/api-key.png" alt="API Key" style="width:100%;border-radius:8px;margin:16px 0;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+
+<h2>2. 字幕修改</h2>
+
+<p>核心功能，用于查看和编辑 SRT 字幕文件。</p>
+
+<h3>基本操作</h3>
+<ul>
+  <li><strong>上传</strong>：点击按钮或拖拽 <code>.srt</code> 文件到窗口</li>
+  <li><strong>编辑文本</strong>：点击字幕文本区域直接修改</li>
+  <li><strong>编辑时间码</strong>：点击时间码修改起止时间</li>
+  <li><strong>拆分</strong>：光标在文本中按 <code>Enter</code></li>
+  <li><strong>合并</strong>：光标在句首按 <code>Backspace</code></li>
+  <li><strong>删除</strong>：悬停行号上方，点击 <code>✕</code></li>
+  <li><strong>撤销</strong>：点击「↩ 撤回」或 <code>Cmd+Z</code></li>
+  <li><strong>导出</strong>：SRT / TXT 两种格式</li>
+</ul>
+
+<img src="screenshots/editor-main.png" alt="字幕修改" style="width:100%;border-radius:8px;margin:16px 0;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+
+<h3>参考字幕（双语对照）</h3>
+<p>点击「参考字幕」下拉菜单选择模式：</p>
+
+<h4>SRT 参考模式</h4>
+<p>「上传 SRT 参考」→ 左右双栏布局，统一滚动，逐行对照。</p>
+<ul><li>左栏：参考字幕（只读）</li><li>右栏：编辑字幕（可修改）</li></ul>
+
+<img src="screenshots/editor-srt-ref.png" alt="SRT参考" style="width:100%;border-radius:8px;margin:16px 0;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+
+<h4>纯文本参考模式</h4>
+<p>「上传 TXT 文本」或「粘贴纯文本」→ 左侧完整文本区，独立滚动。</p>
+
+<img src="screenshots/editor-text-ref.png" alt="文本参考" style="width:100%;border-radius:8px;margin:16px 0;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+
+<h4>空白行占位</h4>
+<p>点击行号旁 <code>+</code> 插入空白行，手动对齐。导出时自动跳过空白行。</p>
+
+<img src="screenshots/editor-blank.png" alt="空白行" style="width:100%;border-radius:8px;margin:16px 0;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+
+<h2>3. 字幕翻译</h2>
+<p>AI 将中文翻译为口语化英文字幕。</p>
+
+<h3>流程</h3>
+<ol>
+  <li>上传 SRT → 点击 <strong>一键翻译</strong></li>
+  <li>设置 <strong>翻译规则</strong>（专有名词、自定义指令）</li>
+  <li><strong>审核</strong>专有名词标记，逐条确认或修改</li>
+  <li>导出 SRT / TXT</li>
+</ol>
+
+<img src="screenshots/translator.png" alt="翻译" style="width:100%;border-radius:8px;margin:16px 0;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+<img src="screenshots/review.png" alt="审核" style="width:100%;border-radius:8px;margin:16px 0;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+<img src="screenshots/disclaimer.png" alt="免责声明" style="width:100%;border-radius:8px;margin:16px 0;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+
+<h2>4. 字幕分割</h2>
+<p>长文本 → 带时间戳的字幕行。</p>
+<ol>
+  <li>粘贴文字 → 设置每行字数上限和计时模式</li>
+  <li>点击「生成字幕」→ 预览结果</li>
+  <li>导出 SRT</li>
+</ol>
+
+<img src="screenshots/splitter.png" alt="字幕分割" style="width:100%;border-radius:8px;margin:16px 0;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+
+<h2>5. 标题和贴文生成</h2>
+<p>基于字幕内容，AI 生成标题和社交媒体贴文。</p>
+<ul>
+  <li>配置平台/类型/语言/摄影师署名</li>
+  <li>素材来源：上传文件 / 从软件获取 / 手动输入</li>
+  <li>多标题备选，一键复制</li>
+  <li><strong>历史记录</strong>：每次重新生成后旧版自动保存，可展开对比</li>
+</ul>
+
+<img src="screenshots/post-main.png" alt="贴文" style="width:100%;border-radius:8px;margin:16px 0;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+<img src="screenshots/post-history.png" alt="历史" style="width:100%;border-radius:8px;margin:16px 0;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+
+<h2>6. 快捷键</h2>
+<table>
+  <tr><th>快捷键</th><th>功能</th><th>页面</th></tr>
+  <tr><td><code>Cmd+Z</code></td><td>撤销</td><td>全局</td></tr>
+  <tr><td><code>Cmd+S</code></td><td>导出 SRT</td><td>字幕修改</td></tr>
+  <tr><td><code>Enter</code></td><td>拆分字幕行</td><td>字幕修改</td></tr>
+  <tr><td><code>Backspace</code></td><td>合并到上一行</td><td>字幕修改</td></tr>
+  <tr><td><code>Cmd+Enter</code></td><td>保存编辑</td><td>翻译审核</td></tr>
+  <tr><td><code>Escape</code></td><td>取消编辑</td><td>翻译审核</td></tr>
+</table>
+
+<div class="footer">
+  <p>AI 生成结果仅供参考，请务必手动编辑核验</p>
+  <p>SubEditor v1.2.0 · <a href="https://github.com/Zlc-prog/subtitle-translator">GitHub</a></p>
+</div>
+</body>
+</html>

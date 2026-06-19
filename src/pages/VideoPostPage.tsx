@@ -5,6 +5,7 @@ import { generateTitle, generatePost } from "../services/socialPostService";
 import VideoPostConfig from "../components/VideoPostConfig";
 import VideoPostResults from "../components/VideoPostResults";
 import DisclaimerModal from "../components/DisclaimerModal";
+import ImportFromAppMenu from "../components/ImportFromAppMenu";
 import { parseSrt } from "../utils/srtParser";
 import { readTextFile, readFile } from "@tauri-apps/plugin-fs";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -41,7 +42,6 @@ export default function VideoPostPage({ onOpenApiKey }: VideoPostPageProps) {
   // Source text (user-provided)
   const [sourceText, setSourceText] = useState("");
   const [importedFrom, setImportedFrom] = useState<ImportSource>(null);
-  const [showSourceMenu, setShowSourceMenu] = useState(false);
 
   // Configuration state
   const [platform, setPlatform] = useState<Platform>("instagram");
@@ -72,18 +72,6 @@ export default function VideoPostPage({ onOpenApiKey }: VideoPostPageProps) {
   const [showDisclaimer, setShowDisclaimer] = useState(false);
 
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setShowSourceMenu(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
 
   // Clear copy feedback timer on unmount
   useEffect(() => {
@@ -149,14 +137,17 @@ export default function VideoPostPage({ onOpenApiKey }: VideoPostPageProps) {
   }, [clearSourceRelated]);
 
   // ── Import from other pages ────────────────────────
-  const handleImportFromApp = useCallback((source: ImportSource) => {
-    setShowSourceMenu(false);
-    if (!source) return;
+  const videoPostSources = [
+    { key: "translator", label: SOURCE_LABELS.translator },
+    { key: "splitter", label: SOURCE_LABELS.splitter },
+    { key: "editor", label: SOURCE_LABELS.editor },
+  ];
 
+  const handleImportFromApp = useCallback((sourceKey: string) => {
     let text = "";
     let found = false;
 
-    switch (source) {
+    switch (sourceKey) {
       case "translator": {
         const lines = subtitles
           .filter((s) => s.translation && s.translation.trim())
@@ -185,10 +176,10 @@ export default function VideoPostPage({ onOpenApiKey }: VideoPostPageProps) {
 
     if (found) {
       setSourceText(text);
-      setImportedFrom(source);
+      setImportedFrom(sourceKey as ImportSource);
       clearSourceRelated();
     } else {
-      alert(`「${SOURCE_LABELS[source]}」中暂无内容，请先在该功能中导入或生成字幕`);
+      alert(`「${SOURCE_LABELS[sourceKey]}」中暂无内容，请先在该功能中导入或生成字幕`);
     }
   }, [subtitles, editorSubtitles, splitterResult, clearSourceRelated]);
 
@@ -337,6 +328,7 @@ export default function VideoPostPage({ onOpenApiKey }: VideoPostPageProps) {
               onRetry={handleRetry}
               titleHistory={titleHistory}
               postHistory={postHistory}
+              apiKey={apiKey}
             />
           </div>
 
@@ -366,31 +358,10 @@ export default function VideoPostPage({ onOpenApiKey }: VideoPostPageProps) {
                 上传文件
               </button>
 
-              {/* Dropdown */}
-              <div className="relative" ref={menuRef}>
-                <button
-                  onClick={() => setShowSourceMenu(!showSourceMenu)}
-                  className="px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-1"
-                >
-                  从软件获取
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                {showSourceMenu && (
-                  <div className="absolute bottom-full left-0 mb-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-10 py-1">
-                    {(["translator", "splitter", "editor"] as const).map((key) => (
-                      <button
-                        key={key}
-                        onClick={() => handleImportFromApp(key)}
-                        className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-blue-50 hover:text-blue-800 transition-colors"
-                      >
-                        {SOURCE_LABELS[key]}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <ImportFromAppMenu
+                sources={videoPostSources}
+                onImport={handleImportFromApp}
+              />
 
               <span className="flex-1 text-right text-xs text-gray-400">
                 {charCount > 0 ? `${charCount.toLocaleString()} 字` : ""}

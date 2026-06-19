@@ -28,14 +28,17 @@ jobs:
             target: aarch64-apple-darwin
             bundle: dmg
             label: macos-arm64
+            suffix: macOS-AppleSilicon
           - platform: macos-latest
             target: x86_64-apple-darwin
             bundle: dmg
             label: macos-intel
+            suffix: macOS-Intel
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
-            bundle: msi,nsis
+            bundle: nsis
             label: windows-x64
+            suffix: Windows-x64
 
     runs-on: ${{ matrix.platform }}
 
@@ -79,6 +82,25 @@ jobs:
           releaseDraft: true
           includeUpdaterJson: false
           args: --target ${{ matrix.target }} --bundles ${{ matrix.bundle }}
+
+      - name: Rename artifacts with platform suffix (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          cd src-tauri/target/${{ matrix.target }}/release/bundle/dmg
+          for f in *.dmg; do
+            base="${f%.dmg}"
+            mv "$f" "${base}_${{ matrix.suffix }}.dmg"
+          done
+
+      - name: Rename artifacts with platform suffix (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          cd src-tauri/target/${{ matrix.target }}/release/bundle/nsis
+          Get-ChildItem *.exe | ForEach-Object {
+            $base = $_.BaseName
+            Rename-Item $_ "${base}_${{ matrix.suffix }}.exe"
+          }
 
       - name: Upload artifact (manual dispatch)
         if: github.event_name == 'workflow_dispatch'

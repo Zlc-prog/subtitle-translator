@@ -6,8 +6,10 @@ import ReviewModal from "../components/ReviewModal";
 import ClearConfirmModal from "../components/ClearConfirmModal";
 import DisclaimerModal from "../components/DisclaimerModal";
 import StatusBar from "../components/StatusBar";
+import { ImportSource } from "../components/ImportFromAppMenu";
 import { useSubtitleStore } from "../stores/subtitleStore";
-import { splitSentences, translateGroup } from "../services/translateService";
+import { splitSentences, translateGroup, translateOne } from "../services/translateService";
+import { RetranslateOptions } from "../components/RetranslatePopover";
 import { loadRules, loadApiKey, saveSession, loadSession } from "../services/configService";
 import { parseSrt, serializeSrt } from "../utils/srtParser";
 import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
@@ -21,6 +23,7 @@ export default function TranslatorPage({ onOpenApiKey }: { onOpenApiKey: () => v
   const [showRetranslateConfirm, setShowRetranslateConfirm] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [importConfirm, setImportConfirm] = useState<ImportSource | null>(null);
 
   const {
     subtitles,
@@ -72,6 +75,48 @@ export default function TranslatorPage({ onOpenApiKey }: { onOpenApiKey: () => v
     if (!selected) return;
     await handleLoadFile(selected as string);
   }, [handleLoadFile]);
+
+  // ── Import from other tabs ──────────────────────────
+  const translatorSources: ImportSource[] = [
+    { key: "splitter", label: "字幕分割" },
+    { key: "editor", label: "字幕修改" },
+  ];
+
+  const doImportToTranslator = useCallback((sourceKey: string) => {
+    const state = useSubtitleStore.getState();
+    let imported: typeof state.subtitles = [];
+    let name = "";
+
+    if (sourceKey === "splitter") {
+      if (state.splitterResult.length === 0) {
+        alert("「字幕分割」中暂无内容，请先生成字幕");
+        return;
+      }
+      imported = state.splitterResult.map((s) => ({ ...s }));
+    } else if (sourceKey === "editor") {
+      if (state.editorSubtitles.length === 0) {
+        alert("「字幕修改」中暂无内容，请先导入字幕");
+        return;
+      }
+      imported = state.editorSubtitles.map((s) => ({ ...s }));
+      name = state.editorFileName;
+    }
+
+    reset();
+    setSubtitles(imported);
+    setFileName(name);
+    setImportConfirm(null);
+  }, [reset, setSubtitles, setFileName]);
+
+  const handleImportToTranslator = useCallback((sourceKey: string) => {
+    const state = useSubtitleStore.getState();
+    if (state.subtitles.length > 0) {
+      const source = translatorSources.find((s) => s.key === sourceKey);
+      if (source) setImportConfirm(source);
+    } else {
+      doImportToTranslator(sourceKey);
+    }
+  }, [doImportToTranslator, translatorSources]);
 
   // Drag-and-drop
   useEffect(() => {
@@ -197,38 +242,51 @@ export default function TranslatorPage({ onOpenApiKey }: { onOpenApiKey: () => v
     await doTranslate(false);
   }, [subtitles.length, apiKey, onOpenApiKey, doTranslate]);
 
-  // Re-translate a sentence group
+  // Re-translate a single line with optional context
   const handleRetranslate = useCallback(
-    async (idx: number) => {
+    async (idx: number, options: RetranslateOptions) => {
       if (!apiKey) {
         alert("请先设置 DeepSeek API Key");
         return;
       }
 
-      const currentGroups = useSubtitleStore.getState().sentenceGroups;
-      const group = currentGroups.find((g) => g.includes(idx));
+      const { mode, contextIndices } = options;
+      const fromStore = useSubtitleStore.getState();
 
-      if (!group) {
-        try {
-          const fromStore = useSubtitleStore.getState();
-          const [result] = await translateGroup([fromStore.subtitles[idx]], translationRules, apiKey, true);
+      try {
+        if (mode === "single") {
+          // Single line: translate without context
+          const [result] = await translateGroup(
+            [fromStore.subtitles[idx]],
+            translationRules,
+            apiKey,
+            true
+          );
           if (result) {
             setPendingTranslation(idx, result);
           }
-        } catch (e: any) {
-          alert(`重新翻译出错: ${e.message ?? e}`);
-        }
-        return;
-      }
+        } else {
+          // Context mode: translate with selected context lines
+          const allIndices = [idx, ...contextIndices].sort((a, b) => a - b);
+          const targetPos = allIndices.indexOf(idx);
 
-      try {
-        const fromStore = useSubtitleStore.getState();
-        const groupSubtitles = group.map((i) => fromStore.subtitles[i]);
-        const translations = await translateGroup(groupSubtitles, translationRules, apiKey, true);
+          const contextBefore = allIndices
+            .slice(0, targetPos)
+            .map((i) => fromStore.subtitles[i]);
+          const contextAfter = allIndices
+            .slice(targetPos + 1)
+            .map((i) => fromStore.subtitles[i]);
 
-        for (let j = 0; j < group.length; j++) {
-          if (translations[j]) {
-            setPendingTranslation(group[j], translations[j]);
+          const result = await translateOne(
+            fromStore.subtitles[idx],
+            contextBefore,
+            contextAfter,
+            translationRules,
+            apiKey,
+            true
+          );
+          if (result) {
+            setPendingTranslation(idx, result);
           }
         }
       } catch (e: any) {
@@ -346,6 +404,8 @@ export default function TranslatorPage({ onOpenApiKey }: { onOpenApiKey: () => v
 
       <Toolbar
         onUpload={handleUpload}
+        importSources={translatorSources}
+        onImport={handleImportToTranslator}
         onOpenRules={() => setShowRules(true)}
         onTranslateAll={translateAll}
         onExportSrt={handleExportSrt}
@@ -379,6 +439,34 @@ export default function TranslatorPage({ onOpenApiKey }: { onOpenApiKey: () => v
       />
 
       <DisclaimerModal isOpen={showDisclaimer} onConfirm={handleDisclaimerConfirm} />
+
+      {/* Import confirmation */}
+      {importConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-2xl w-[400px]">
+            <div className="px-5 py-4 border-b border-gray-200">
+              <h2 className="text-base font-semibold text-gray-800">从软件获取字幕</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                当前已有 {subtitles.length} 条字幕，从「{importConfirm.label}」导入将覆盖现有内容。是否继续？
+              </p>
+            </div>
+            <div className="px-5 py-4 flex justify-end gap-2">
+              <button
+                onClick={() => setImportConfirm(null)}
+                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => doImportToTranslator(importConfirm.key)}
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                确认覆盖
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Re-translate confirmation */}
       {showRetranslateConfirm && (
